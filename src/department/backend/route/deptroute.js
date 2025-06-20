@@ -10,7 +10,8 @@ const {
   updateEnrollmentStatus,
   updateExaminationStatus,  // Add this
   submitEnrollmentDeclaration,  // Add this
-  submitExaminationDeclaration  // Add this
+  submitExaminationDeclaration,  // Add this
+  getEnrollmentYearStatuses
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- Add this line
 
@@ -31,6 +32,7 @@ router.post('/student-enrollment/update-status', updateEnrollmentStatus);
 router.post('/student-examination/update-status', updateExaminationStatus);
 router.post('/student-enrollment/submit-declaration', submitEnrollmentDeclaration);
 router.post('/student-examination/submit-declaration', submitExaminationDeclaration);
+router.get('/student-enrollment/year-statuses/:deptId', getEnrollmentYearStatuses);
 
 // Add this route:
 router.get('/department-user/academic-year/:deptId', async (req, res) => {

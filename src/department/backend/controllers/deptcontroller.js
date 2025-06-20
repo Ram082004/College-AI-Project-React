@@ -495,3 +495,34 @@ exports.submitExaminationDeclaration = async (req, res) => {
     });
   }
 };
+
+// Get enrollment status for all year slots for a department
+exports.getEnrollmentYearStatuses = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    if (!deptId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
+    }
+    const [years] = await pool.query(
+      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
+      [deptId]
+    );
+    const academicYear = years[0]?.academic_year;
+    if (!academicYear) {
+      return res.json({ success: false, statuses: [] });
+    }
+    const [rows] = await pool.query(
+      `SELECT year, status FROM student_enrollment WHERE dept_id = ? AND academic_year = ?`,
+      [deptId, academicYear]
+    );
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    const normalizeStatus = (status) => status.trim().toLowerCase();
+    const statusMap = {};
+    rows.forEach(r => {
+      statusMap[normalizeYear(r.year)] = normalizeStatus(r.status);
+    });
+    res.json({ success: true, statuses: statusMap, academicYear });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
+  }
+};

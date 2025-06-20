@@ -70,11 +70,14 @@ export default function StudentEnrollment({ userData, yearSlots }) {
   const [showDeclaration, setShowDeclaration] = useState(false);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
+  const [yearStatuses, setYearStatuses] = useState({});
+  const [statusAcademicYear, setStatusAcademicYear] = useState('');
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchStudentDetails();
+    fetchYearStatuses();
     // eslint-disable-next-line
   }, [userData]);
 
@@ -100,6 +103,25 @@ export default function StudentEnrollment({ userData, yearSlots }) {
       else setStudentDetails([]);
     } catch {
       setStudentDetails([]);
+    }
+  };
+
+  const fetchYearStatuses = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/student-enrollment/year-statuses/${userData.dept_id}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success) {
+        setYearStatuses(res.data.statuses || {});
+        setStatusAcademicYear(res.data.academicYear || '');
+      } else {
+        setYearStatuses({});
+        setStatusAcademicYear('');
+      }
+    } catch {
+      setYearStatuses({});
+      setStatusAcademicYear('');
     }
   };
 
@@ -294,6 +316,59 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                 <RiInformationLine className="text-xl text-blue-700" />
                 <span className="text-xs text-blue-700">Subcategory Info</span>
               </button>
+            </div>
+          </div>
+
+          {/* Year Completion Status */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <RiCheckboxCircleLine className="text-blue-600" />
+                  Year Completion Status
+                </span>
+                <span className="text-sm text-blue-500 font-medium">
+                  Academic Year: <span className="font-semibold">{statusAcademicYear || 'N/A'}</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {yearSlots.map((slot, idx) => {
+                  const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+                  const normalizedSlot = normalizeYear(slot);
+                  const status = yearStatuses[normalizedSlot];
+                  const isFinished = status === 'finished';
+                  return (
+                    <div
+                      key={slot}
+                      className={`flex items-center gap-3 px-5 py-4 rounded-xl border transition-all duration-200 shadow-sm
+                        ${isFinished
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-yellow-50 border-yellow-200'
+                        }`}
+                    >
+                      <div className={`flex items-center justify-center w-10 h-10 rounded-full
+                        ${isFinished ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                        {isFinished ? (
+                          <RiCheckboxCircleLine className="text-2xl text-green-600" />
+                        ) : (
+                          <RiBarChartBoxLine className="text-2xl text-yellow-500" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-base font-semibold text-gray-800">{slot}</div>
+                        <div className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-bold
+                          ${isFinished
+                            ? 'bg-green-200 text-green-800'
+                            : 'bg-yellow-200 text-yellow-800'
+                          }`}
+                        >
+                          {isFinished ? 'Completed' : 'Incomplete'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
