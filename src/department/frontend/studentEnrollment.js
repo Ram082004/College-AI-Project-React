@@ -275,10 +275,9 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
-  // Helper to check if all years are finished
-  const isAllYearsFinished = () => {
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
+  // Helper to check if all years are completed (using yearCompletionStatus)
+  const isAllYearsCompleted = () => {
+    return yearSlots.every((slot) => yearCompletionStatus[slot] === 'completed');
   };
 
   const getAllFinishedYears = () => {
@@ -410,12 +409,12 @@ export default function StudentEnrollment({ userData }) {
                 })}
               </div>
               {/* Show Final Declaration Button if all years are finished */}
-              {isAllYearsFinished() && (
+              {isAllYearsCompleted() && (
                 <div className="flex justify-end mt-6">
                   <button
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
                     onClick={() => {
-                      setDeclarationYearSlot(getAllFinishedYears());
+                      setDeclarationYearSlot(yearSlots);
                       setShowDeclaration(true);
                     }}
                   >

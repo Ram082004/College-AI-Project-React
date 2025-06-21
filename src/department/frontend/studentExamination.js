@@ -78,12 +78,14 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [yearStatuses, setYearStatuses] = useState({});
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
+  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchExaminationDetails();
     fetchYearStatuses();
+    fetchYearCompletionStatus();
     // eslint-disable-next-line
   }, [userData]);
 
@@ -133,10 +135,37 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
+  const fetchYearCompletionStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/student-examination/year-completion-status/${userData.dept_id}`);
+      if (!res.ok) {
+        setYearCompletionStatus({});
+        setStatusAcademicYear('');
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        setYearCompletionStatus(data.statuses);
+        setStatusAcademicYear(data.academicYear);
+      } else {
+        setYearCompletionStatus({});
+        setStatusAcademicYear('');
+      }
+    } catch {
+      setYearCompletionStatus({});
+      setStatusAcademicYear('');
+    }
+  };
+
   // Helper to check if all years are finished
   const isAllYearsFinished = () => {
     const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
     return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
+  };
+
+  const isAllYearsCompleted = () => {
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'completed');
   };
 
   const getAllFinishedYears = () => {

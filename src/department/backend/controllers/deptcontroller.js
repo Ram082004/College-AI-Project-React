@@ -570,3 +570,39 @@ exports.getEnrollmentYearCompletionStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
   }
 };
+
+// Controller for examination year completion status
+exports.getExaminationYearCompletionStatus = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
+    if (!deptId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
+    }
+    // Get latest academic year for this department
+    const [years] = await pool.query(
+      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
+      [deptId]
+    );
+    const academicYear = years[0]?.academic_year;
+    if (!academicYear) {
+      return res.json({ success: true, statuses: {}, academicYear: null });
+    }
+    // For each year, check if there is at least one record and status is 'finished'
+    const result = {};
+    for (const year of yearSlots) {
+      const [rows] = await pool.query(
+        `SELECT status FROM student_examination WHERE dept_id = ? AND academic_year = ? AND year = ? LIMIT 1`,
+        [deptId, academicYear, year]
+      );
+      if (rows.length > 0 && rows[0].status && rows[0].status.trim().toLowerCase() === 'finished') {
+        result[year] = 'completed';
+      } else {
+        result[year] = 'incomplete';
+      }
+    }
+    res.json({ success: true, statuses: result, academicYear });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
+  }
+};

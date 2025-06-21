@@ -12,7 +12,8 @@ const {
   submitEnrollmentDeclaration,
   submitExaminationDeclaration,
   getEnrollmentYearStatuses,
-  getEnrollmentYearCompletionStatus
+  getEnrollmentYearCompletionStatus,
+  getExaminationYearCompletionStatus
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- Add this line
 
@@ -32,6 +33,7 @@ router.get('/student-examination/department/:deptId', getExaminationDetails);
 router.post('/student-enrollment/update-status', updateEnrollmentStatus);
 router.post('/student-examination/update-status', updateExaminationStatus);
 router.post('/student-enrollment/submit-declaration', submitEnrollmentDeclaration);
+router.post('/student-examination/submit-declaration', submitExaminationDeclaration);
 router.get('/student-enrollment/year-statuses/:deptId', getEnrollmentYearStatuses);
 
 // Add this route:
@@ -60,5 +62,6 @@ router.get('/student-enrollment/submit-declaration', (req, res) => {
 
 // Add this route for year completion status
 router.get('/student-enrollment/year-completion-status/:deptId', getEnrollmentYearCompletionStatus);
+router.get('/student-examination/year-completion-status/:deptId', getExaminationYearCompletionStatus);
 
 module.exports = router;
