@@ -8,10 +8,11 @@ const {
   addExaminationData,
   getExaminationDetails,
   updateEnrollmentStatus,
-  updateExaminationStatus,  // Add this
-  submitEnrollmentDeclaration,  // Add this
-  submitExaminationDeclaration,  // Add this
-  getEnrollmentYearStatuses
+  updateExaminationStatus,
+  submitEnrollmentDeclaration,
+  submitExaminationDeclaration,
+  getEnrollmentYearStatuses,
+  getEnrollmentYearCompletionStatus
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- Add this line
 
@@ -31,7 +32,6 @@ router.get('/student-examination/department/:deptId', getExaminationDetails);
 router.post('/student-enrollment/update-status', updateEnrollmentStatus);
 router.post('/student-examination/update-status', updateExaminationStatus);
 router.post('/student-enrollment/submit-declaration', submitEnrollmentDeclaration);
-router.post('/student-examination/submit-declaration', submitExaminationDeclaration);
 router.get('/student-enrollment/year-statuses/:deptId', getEnrollmentYearStatuses);
 
 // Add this route:
@@ -50,5 +50,15 @@ router.get('/department-user/academic-year/:deptId', async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch academic year' });
   }
 });
+
+router.get('/student-enrollment/submit-declaration', (req, res) => {
+  res.status(405).json({
+    success: false,
+    message: 'Method not allowed. Use POST request instead.'
+  });
+});
+
+// Add this route for year completion status
+router.get('/student-enrollment/year-completion-status/:deptId', getEnrollmentYearCompletionStatus);
 
 module.exports = router;

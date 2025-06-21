@@ -6,13 +6,12 @@ import {
   RiSearchLine,
   RiBuilding2Line,
   RiUserAddLine,
-  RiBarChartBoxLine,
-  RiCheckboxCircleLine
+  RiBarChartBoxLine
 } from 'react-icons/ri';
 import axios from 'axios';
 import StudentEnrollment from './studentEnrollment';
 import StudentExamination from './studentExamination';
-import DeptStatus from './deptStatus';
+
 
 const yearSlots = ['I Year', 'II Year', 'III Year'];
 
@@ -113,17 +112,6 @@ export default function DepartmentDashboard() {
               <RiBarChartBoxLine className="text-xl" />
               <span>Student Examination</span>
             </motion.button>
-            {/* Move Enrollment Status here */}
-            <motion.button
-              whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('enrollmentStatus')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'enrollmentStatus' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <RiCheckboxCircleLine className="text-xl" />
-              <span>Enrollment Status</span>
-            </motion.button>
             {/* If you have Profile Settings, add it after Enrollment Status */}
             {/* <motion.button ...>Profile Settings</motion.button> */}
           </nav>
@@ -187,8 +175,6 @@ export default function DepartmentDashboard() {
                 ? 'Student Enrollment'
                 : activeTab === 'examination'
                 ? 'Student Examination'
-                : activeTab === 'enrollmentStatus'
-                ? 'Enrollment Status'
                 : 'Profile Settings'}
             </h1>
             <p className="mt-1 text-gray-500">
@@ -227,13 +213,7 @@ export default function DepartmentDashboard() {
                 />
               )}
 
-              {/* Enrollment Status tab before Profile Settings */}
-              {activeTab === 'enrollmentStatus' && (
-                <DeptStatus userData={userData} />
-              )}
-              {/* {activeTab === 'profile' && (
-                <ProfileSettings userData={userData} />
-              )} */}
+              
             </div>
           </motion.div>
         </div>

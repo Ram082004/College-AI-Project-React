@@ -75,12 +75,15 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [showDeclaration, setShowDeclaration] = useState(false);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
+  const [yearStatuses, setYearStatuses] = useState({});
+  const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchExaminationDetails();
+    fetchYearStatuses();
     // eslint-disable-next-line
   }, [userData]);
 
@@ -107,6 +110,38 @@ export default function StudentExamination({ userData, yearSlots }) {
     } catch {
       setExaminationDetails([]);
     }
+  };
+
+  // Fetch year statuses for all slots
+  const fetchYearStatuses = async () => {
+    try {
+      const yearsParam = encodeURIComponent(yearSlots.join(','));
+      const res = await axios.get(
+        `http://localhost:5000/api/student-enrollment/year-statuses/${userData.dept_id}?years=${yearsParam}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success) {
+        setYearStatuses(res.data.statuses || {});
+        setStatusAcademicYear(res.data.academicYear || '');
+      } else {
+        setYearStatuses({});
+        setStatusAcademicYear('');
+      }
+    } catch {
+      setYearStatuses({});
+      setStatusAcademicYear('');
+    }
+  };
+
+  // Helper to check if all years are finished
+  const isAllYearsFinished = () => {
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
+  };
+
+  const getAllFinishedYears = () => {
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    return yearSlots.filter((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
   };
 
   const handleExaminationSubmit = async (e) => {
@@ -206,40 +241,25 @@ export default function StudentExamination({ userData, yearSlots }) {
   const handleFinalDeclarationSubmit = async () => {
     setFinalSubmitting(true);
     try {
-      const response = await axios.post(
+      await axios.post(
         'http://localhost:5000/api/student-examination/submit-declaration',
         {
           dept_id: userData?.dept_id,
           name: userData?.name || userData?.username,
           department: userData?.department,
-          year: yearSlots[declarationYearSlot],
+          year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Examination'
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
-
-      if (response.data.success) {
-        setFinalSubmitSuccess(true);
-        // Refresh examination details after successful declaration
-        await fetchExaminationDetails();
-        
-        setTimeout(() => {
-          setShowDeclaration(false);
-          setFinalSubmitSuccess(false);
-          if (declarationYearSlot < yearSlots.length - 1) {
-            setCurrentYearSlot(declarationYearSlot + 1);
-          }
-          setDeclarationYearSlot(null);
-          setGlobalMessage({ type: 'success', text: 'Declaration submitted successfully' });
-        }, 2000);
-      } else {
-        setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to submit declaration' });
-      }
+      setFinalSubmitSuccess(true);
+      setTimeout(() => {
+        setShowDeclaration(false);
+        setFinalSubmitSuccess(false);
+        setDeclarationYearSlot(null);
+      }, 2000);
     } catch (err) {
-      setGlobalMessage({ 
-        type: 'error', 
-        text: err.response?.data?.message || 'Failed to submit declaration' 
-      });
+      setGlobalMessage({ type: 'error', text: 'Failed to submit declaration' });
     } finally {
       setFinalSubmitting(false);
     }
@@ -336,6 +356,72 @@ export default function StudentExamination({ userData, yearSlots }) {
                 <RiInformationLine className="text-xl text-blue-700" />
                 <span className="text-xs text-blue-700">Subcategory Info</span>
               </button>
+            </div>
+          </div>
+
+          {/* Year Completion Status - move here */}
+          <div className="mb-8">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <RiCheckboxCircleLine className="text-blue-600" />
+                  Year Completion Status
+                </span>
+                <span className="text-sm text-blue-500 font-medium">
+                  Academic Year: <span className="font-semibold">{statusAcademicYear || 'N/A'}</span>
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {yearSlots.map((slot, idx) => {
+                  const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+                  const status = yearStatuses[normalizeYear(slot)];
+                  const isFinished = status === 'finished';
+                  return (
+                    <div
+                      key={slot}
+                      className={`flex items-center gap-3 px-5 py-4 rounded-xl border transition-all duration-200 shadow-sm
+                        ${isFinished
+                          ? 'bg-green-50 border-green-200'
+                          : 'bg-yellow-50 border-yellow-200'
+                        }`}
+                    >
+                      <div className={`flex items-center justify-center w-10 h-10 rounded-full
+                        ${isFinished ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                        {isFinished ? (
+                          <RiCheckboxCircleLine className="text-2xl text-green-600" />
+                        ) : (
+                          <RiBarChartBoxLine className="text-2xl text-yellow-500" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-base font-semibold text-gray-800">{slot}</div>
+                        <div className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-bold
+                          ${isFinished
+                            ? 'bg-green-200 text-green-800'
+                            : 'bg-yellow-200 text-yellow-800'
+                          }`}
+                        >
+                          {isFinished ? 'Completed' : 'Incomplete'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Show Final Declaration Button if all years are finished */}
+              {isAllYearsFinished() && (
+                <div className="flex justify-end mt-6">
+                  <button
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
+                    onClick={() => {
+                      setDeclarationYearSlot(getAllFinishedYears());
+                      setShowDeclaration(true);
+                    }}
+                  >
+                    Final Submission
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -504,21 +590,9 @@ export default function StudentExamination({ userData, yearSlots }) {
                   setShowConfirm(false);
                   await handleExaminationSubmit();
                   await updateExaminationStatus('finished');
-                  setDeclarationYearSlot(currentYearSlot);
-                  setShowDeclaration(true);
                 }}
               >
                 Finish
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600"
-                onClick={async () => {
-                  setShowConfirm(false);
-                  await handleExaminationSubmit();
-                  await updateExaminationStatus('pending');
-                }}
-              >
-                Pending
               </button>
             </div>
           </div>
@@ -531,7 +605,7 @@ export default function StudentExamination({ userData, yearSlots }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full mx-4"
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-3xl w-full mx-4"
           >
             {/* Header */}
             <div className="text-center mb-8">
@@ -544,27 +618,29 @@ export default function StudentExamination({ userData, yearSlots }) {
               <p className="text-gray-500 mt-2">Please review and confirm your submission</p>
             </div>
 
-            {/* Department Info Card */}
+            {/* Landscape Info Card */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 mb-6">
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Department ID</p>
-                  <p className="text-lg font-semibold text-gray-900">{userData?.dept_id}</p>
-                </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Academic Year</p>
                   <p className="text-lg font-semibold text-gray-900">{academicYears[0]}</p>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <p className="text-sm font-medium text-gray-500">Department Name</p>
                   <p className="text-lg font-semibold text-gray-900">{userData?.department}</p>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <p className="text-sm font-medium text-gray-500">Submitted By</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {userData?.name || userData?.username || (
                       <span className="text-red-500 text-base">Not Available</span>
                     )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Completed Years</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {(declarationYearSlot || []).join(', ')}
                   </p>
                 </div>
               </div>
@@ -582,7 +658,9 @@ export default function StudentExamination({ userData, yearSlots }) {
                   <h4 className="font-semibold text-gray-900 mb-2">Declaration Statement</h4>
                   <p className="text-gray-600 leading-relaxed">
                     I hereby declare that the Student Examination data for{' '}
-                    <span className="font-semibold text-blue-600">{yearSlots[declarationYearSlot]}</span>{' '}
+                    <span className="font-semibold text-blue-600">
+                      {(declarationYearSlot || []).join(', ')}
+                    </span>{' '}
                     is true and correct to the best of my knowledge and belief. I understand that any 
                     discrepancy found later may lead to necessary action as per institutional policy.
                   </p>

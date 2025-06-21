@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { RiInformationLine, RiBarChartBoxLine } from 'react-icons/ri';
+import {
+  RiInformationLine,
+  RiBarChartBoxLine,
+  RiCheckboxCircleLine
+} from 'react-icons/ri';
 import axios from 'axios';
-import { RiCheckboxCircleLine } from 'react-icons/ri'; // For success icon
 
 const API_BASE = 'http://localhost:5000/api';
 const API = {
@@ -47,7 +50,8 @@ const subcategoryInfo = {
   'Other Minority': 'Students belonging to other minority communities including Sikh, Christian, Buddhist, Parsi and Jain'
 };
 
-export default function StudentEnrollment({ userData, yearSlots }) {
+export default function StudentEnrollment({ userData }) {
+  const yearSlots = ['I Year', 'II Year', 'III Year'];
   const [academicYears, setAcademicYears] = useState([]);
   const [currentYearSlot, setCurrentYearSlot] = useState(0);
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
@@ -72,12 +76,14 @@ export default function StudentEnrollment({ userData, yearSlots }) {
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
   const [yearStatuses, setYearStatuses] = useState({});
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
+  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchStudentDetails();
     fetchYearStatuses();
+    fetchYearCompletionStatus();
     // eslint-disable-next-line
   }, [userData]);
 
@@ -121,6 +127,39 @@ export default function StudentEnrollment({ userData, yearSlots }) {
       }
     } catch {
       setYearStatuses({});
+      setStatusAcademicYear('');
+    }
+  };
+
+  // Fetch year completion status (call this in useEffect or after data changes)
+  const fetchYearCompletionStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/student-enrollment/year-completion-status/${userData.dept_id}`);
+      if (!res.ok) {
+        // Try to parse error JSON, or fallback to a generic error
+        let errorMsg = 'Failed to fetch year completion status';
+        try {
+          const errData = await res.json();
+          errorMsg = errData.message || errorMsg;
+        } catch {
+          // If not JSON, do nothing
+        }
+        setGlobalMessage({ type: 'error', text: errorMsg });
+        setYearCompletionStatus({});
+        setStatusAcademicYear('');
+        return;
+      }
+      const data = await res.json();
+      if (data.success) {
+        setYearCompletionStatus(data.statuses);
+        setStatusAcademicYear(data.academicYear);
+      } else {
+        setYearCompletionStatus({});
+        setStatusAcademicYear('');
+      }
+    } catch (err) {
+      setGlobalMessage({ type: 'error', text: 'Network error fetching year completion status' });
+      setYearCompletionStatus({});
       setStatusAcademicYear('');
     }
   };
@@ -203,7 +242,7 @@ export default function StudentEnrollment({ userData, yearSlots }) {
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
-      // Optionally, refresh status UI here
+      fetchYearStatuses();
     } catch (err) {
       setGlobalMessage({ type: 'error', text: 'Failed to update status' });
     }
@@ -215,10 +254,10 @@ export default function StudentEnrollment({ userData, yearSlots }) {
       await axios.post(
         'http://localhost:5000/api/student-enrollment/submit-declaration',
         {
-          dept_id: userData?.dept_id,
-          name: userData?.name || userData?.username, // fallback to username
+          dept_id: userData?.dept_id, // <-- This line is correct
+          name: userData?.name || userData?.username,
           department: userData?.department,
-          year: yearSlots[declarationYearSlot],
+          year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Enrollment'
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
@@ -227,9 +266,6 @@ export default function StudentEnrollment({ userData, yearSlots }) {
       setTimeout(() => {
         setShowDeclaration(false);
         setFinalSubmitSuccess(false);
-        if (declarationYearSlot < yearSlots.length - 1) {
-          setCurrentYearSlot(declarationYearSlot + 1);
-        }
         setDeclarationYearSlot(null);
       }, 2000);
     } catch (err) {
@@ -239,16 +275,27 @@ export default function StudentEnrollment({ userData, yearSlots }) {
     }
   };
 
+  // Helper to check if all years are finished
+  const isAllYearsFinished = () => {
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
+  };
+
+  const getAllFinishedYears = () => {
+    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
+    return yearSlots.filter((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
+  };
+
   return (
     <>
-      <div className="space-y-8">
+      <div className="space-y-10 max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-2xl font-bold text-gray-900">Add Enrollment Data</h3>
-            <p className="text-sm text-gray-500 mt-1">Enter student count by category and gender</p>
+            <h3 className="text-3xl font-bold text-gray-900 tracking-tight">Student Enrollment</h3>
+            <p className="text-base text-gray-500 mt-1">Enter student count by category, subcategory, and gender for each year.</p>
           </div>
-          <span className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium shadow-md">
+          <span className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl text-base font-semibold shadow-md">
             {userData?.department}
           </span>
         </div>
@@ -259,44 +306,40 @@ export default function StudentEnrollment({ userData, yearSlots }) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className={`mb-4 px-4 py-2 rounded-lg text-white ${
+            className={`mb-4 px-4 py-3 rounded-xl text-white text-base font-medium shadow-lg ${
               globalMessage.type === 'success' ? 'bg-green-500' : 'bg-red-500'
             }`}
           >
             {globalMessage.text}
           </motion.div>
-        )
+        )}
 
-        /* Form */
-        }
-        <form onSubmit={handleEnrollmentSubmit} className="space-y-8">
-          {/* Academic Year and Year Slot Side by Side */}
+        {/* Form */}
+        <form onSubmit={handleEnrollmentSubmit} className="space-y-10">
+          {/* Academic Year, Year Slot, Info Buttons */}
           <div className="flex flex-wrap gap-6 items-end">
-            {/* Academic Year Display */}
-            <div className="max-w-xs flex-1">
+            <div className="flex-1 min-w-[180px] max-w-xs">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Academic Year *
               </label>
-              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700">
+              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700 text-base">
                 {academicYears[0] || 'N/A'}
               </div>
             </div>
-            {/* Year Slot Selector */}
-            <div className="max-w-xs flex-1">
+            <div className="flex-1 min-w-[180px] max-w-xs">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Year Slot
               </label>
               <select
                 value={yearSlots[currentYearSlot]}
                 onChange={e => setCurrentYearSlot(yearSlots.indexOf(e.target.value))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
+                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
               >
                 {yearSlots.map((slot) => (
                   <option key={slot} value={slot}>{slot}</option>
                 ))}
               </select>
             </div>
-            {/* Info Buttons (only once, at the top right) */}
             <div className="flex-1 flex gap-2 justify-end items-end">
               <button
                 type="button"
@@ -332,23 +375,20 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                 </span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {yearSlots.map((slot, idx) => {
-                  const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-                  const normalizedSlot = normalizeYear(slot);
-                  const status = yearStatuses[normalizedSlot];
-                  const isFinished = status === 'finished';
+                {yearSlots.map((slot) => {
+                  const isCompleted = yearCompletionStatus[slot] === 'completed';
                   return (
                     <div
                       key={slot}
                       className={`flex items-center gap-3 px-5 py-4 rounded-xl border transition-all duration-200 shadow-sm
-                        ${isFinished
+                        ${isCompleted
                           ? 'bg-green-50 border-green-200'
                           : 'bg-yellow-50 border-yellow-200'
                         }`}
                     >
                       <div className={`flex items-center justify-center w-10 h-10 rounded-full
-                        ${isFinished ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                        {isFinished ? (
+                        ${isCompleted ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                        {isCompleted ? (
                           <RiCheckboxCircleLine className="text-2xl text-green-600" />
                         ) : (
                           <RiBarChartBoxLine className="text-2xl text-yellow-500" />
@@ -357,33 +397,49 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                       <div className="flex-1">
                         <div className="text-base font-semibold text-gray-800">{slot}</div>
                         <div className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-bold
-                          ${isFinished
+                          ${isCompleted
                             ? 'bg-green-200 text-green-800'
                             : 'bg-yellow-200 text-yellow-800'
                           }`}
                         >
-                          {isFinished ? 'Completed' : 'Incomplete'}
+                          {isCompleted ? 'Completed' : 'Incomplete'}
                         </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {/* Show Final Declaration Button if all years are finished */}
+              {isAllYearsFinished() && (
+                <div className="flex justify-end mt-6">
+                  <button
+                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
+                    onClick={() => {
+                      setDeclarationYearSlot(getAllFinishedYears());
+                      setShowDeclaration(true);
+                    }}
+                  >
+                    Final Submission
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Categories Grid */}
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-8">
             {subcategories.map((subcategory) => (
-              <div key={subcategory} 
-                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-all duration-300">
+              <div key={subcategory}
+                className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
+              >
                 <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-6 py-4 flex items-center">
                   <h4 className="font-semibold text-lg">{subcategory}</h4>
                 </div>
                 <div className="p-6 space-y-6">
                   {categories.map((category) => (
-                    <div key={category} 
-                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-5 transition-all duration-200">
+                    <div key={category}
+                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-5 transition-all duration-200"
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
                           {category}
@@ -400,7 +456,6 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                               min="0"
                               value={enrollmentData[subcategory][category][gender]}
                               onChange={(e) => {
-                                // Parse value, default to 0 if empty or invalid
                                 let value = parseInt(e.target.value, 10);
                                 if (isNaN(value) || value < 0) value = 0;
                                 setEnrollmentData(prev => ({
@@ -452,67 +507,67 @@ export default function StudentEnrollment({ userData, yearSlots }) {
             )}
           </button>
         </form>
-      </div>
 
-      {/* Student Details Table */}
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-gray-900">Enrollment Records</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Total Records: {studentDetails.length}</span>
+        {/* Student Details Table */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">Enrollment Records</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Total Records: {studentDetails.length}</span>
+            </div>
           </div>
-        </div>
-        <div className="table-container rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
-          <table className="data-table min-w-full text-sm text-gray-700">
-            <thead className="table-header bg-gradient-to-r from-blue-50 to-indigo-50">
-              <tr>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Academic Year</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Year</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Category</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Subcategory</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Male</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Female</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Transgender</th>
-              </tr>
-            </thead>
-            <tbody>
-              {studentDetails.length > 0 ? (
-                studentDetails.map((detail, index) => (
-                  <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
-                    <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
-                    <td className="px-6 py-4">{detail.year}</td>
-                    <td className="px-6 py-4">{detail.category}</td>
-                    <td className="px-6 py-4">{detail.subcategory}</td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
-                        {detail.male_count}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block px-3 py-1 rounded-full bg-pink-100 text-pink-700 font-semibold">
-                        {detail.female_count}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold">
-                        {detail.transgender_count}
-                      </span>
+          <div className="table-container rounded-2xl shadow-lg border border-gray-100 overflow-x-auto">
+            <table className="data-table min-w-full text-sm text-gray-700">
+              <thead className="table-header bg-gradient-to-r from-blue-50 to-indigo-50">
+                <tr>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Academic Year</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Year</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Category</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Subcategory</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Male</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Female</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Transgender</th>
+                </tr>
+              </thead>
+              <tbody>
+                {studentDetails.length > 0 ? (
+                  studentDetails.map((detail, index) => (
+                    <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
+                      <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
+                      <td className="px-6 py-4">{detail.year}</td>
+                      <td className="px-6 py-4">{detail.category}</td>
+                      <td className="px-6 py-4">{detail.subcategory}</td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                          {detail.male_count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-3 py-1 rounded-full bg-pink-100 text-pink-700 font-semibold">
+                          {detail.female_count}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-block px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-semibold">
+                          {detail.transgender_count}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400 bg-gradient-to-r from-blue-50 to-indigo-50">
+                      <div className="flex flex-col items-center justify-center">
+                        <RiBarChartBoxLine className="w-12 h-12 text-gray-300 mb-2" />
+                        <p className="text-gray-600 font-medium">No enrollment records found</p>
+                        <p className="text-gray-400 text-xs mt-1">Add new records using the form above</p>
+                      </div>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-gray-400 bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <div className="flex flex-col items-center justify-center">
-                      <RiBarChartBoxLine className="w-12 h-12 text-gray-300 mb-2" />
-                      <p className="text-gray-600 font-medium">No enrollment records found</p>
-                      <p className="text-gray-400 text-xs mt-1">Add new records using the form above</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -589,21 +644,11 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                   setShowConfirm(false);
                   await handleEnrollmentSubmit();
                   await updateEnrollmentStatus('finished');
-                  setDeclarationYearSlot(currentYearSlot); // <-- Set the year slot being declared
-                  setShowDeclaration(true);
+                  setGlobalMessage({ type: 'success', text: 'Year marked as completed.' });
+                  setTimeout(() => setGlobalMessage(null), 3000);
                 }}
               >
                 Finish
-              </button>
-              <button
-                className="px-4 py-2 rounded-lg bg-yellow-500 text-white hover:bg-yellow-600"
-                onClick={async () => {
-                  setShowConfirm(false);
-                  await handleEnrollmentSubmit();
-                  await updateEnrollmentStatus('pending');
-                }}
-              >
-                Pending
               </button>
             </div>
           </div>
@@ -616,7 +661,7 @@ export default function StudentEnrollment({ userData, yearSlots }) {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full mx-4"
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-3xl w-full mx-4"
           >
             {/* Header */}
             <div className="text-center mb-8">
@@ -629,27 +674,29 @@ export default function StudentEnrollment({ userData, yearSlots }) {
               <p className="text-gray-500 mt-2">Please review and confirm your submission</p>
             </div>
 
-            {/* Department Info Card */}
+            {/* Landscape Info Card */}
             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 mb-6">
               <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Department ID</p>
-                  <p className="text-lg font-semibold text-gray-900">{userData?.dept_id}</p>
-                </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Academic Year</p>
                   <p className="text-lg font-semibold text-gray-900">{academicYears[0]}</p>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <p className="text-sm font-medium text-gray-500">Department Name</p>
                   <p className="text-lg font-semibold text-gray-900">{userData?.department}</p>
                 </div>
-                <div className="col-span-2">
+                <div>
                   <p className="text-sm font-medium text-gray-500">Submitted By</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {userData?.name || userData?.username || (
                       <span className="text-red-500 text-base">Not Available</span>
                     )}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Completed Years</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {(declarationYearSlot || []).join(', ')}
                   </p>
                 </div>
               </div>
@@ -667,7 +714,9 @@ export default function StudentEnrollment({ userData, yearSlots }) {
                   <h4 className="font-semibold text-gray-900 mb-2">Declaration Statement</h4>
                   <p className="text-gray-600 leading-relaxed">
                     I hereby declare that the Student Enrollment data for{' '}
-                    <span className="font-semibold text-blue-600">{yearSlots[declarationYearSlot]}</span>{' '}
+                    <span className="font-semibold text-blue-600">
+                      {(declarationYearSlot || []).join(', ')}
+                    </span>{' '}
                     is true and correct to the best of my knowledge and belief. I understand that any 
                     discrepancy found later may lead to necessary action as per institutional policy.
                   </p>

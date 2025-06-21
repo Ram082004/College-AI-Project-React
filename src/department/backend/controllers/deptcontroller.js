@@ -496,10 +496,12 @@ exports.submitExaminationDeclaration = async (req, res) => {
   }
 };
 
-// Get enrollment status for all year slots for a department
+// Controller in deptcontroller.js
 exports.getEnrollmentYearStatuses = async (req, res) => {
   try {
     const { deptId } = req.params;
+    // Accept yearSlots as a query param: ?years=I%20Year,II%20Year,III%20Year
+    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
     if (!deptId) {
       return res.status(400).json({ success: false, message: 'Department ID is required' });
     }
@@ -512,7 +514,7 @@ exports.getEnrollmentYearStatuses = async (req, res) => {
       return res.json({ success: false, statuses: [] });
     }
     const [rows] = await pool.query(
-      `SELECT year, status FROM student_enrollment WHERE dept_id = ? AND academic_year = ?`,
+      `SELECT year, status FROM student_examination WHERE dept_id = ? AND academic_year = ?`,
       [deptId, academicYear]
     );
     const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -521,8 +523,50 @@ exports.getEnrollmentYearStatuses = async (req, res) => {
     rows.forEach(r => {
       statusMap[normalizeYear(r.year)] = normalizeStatus(r.status);
     });
+    // Ensure all yearSlots are present in the response
+    yearSlots.forEach(y => {
+      const key = normalizeYear(y);
+      if (!statusMap[key]) statusMap[key] = 'incomplete';
+    });
     res.json({ success: true, statuses: statusMap, academicYear });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
+  }
+};
+
+// New controller for enrollment year completion status
+exports.getEnrollmentYearCompletionStatus = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
+    if (!deptId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
+    }
+    // Get latest academic year for this department
+    const [years] = await pool.query(
+      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
+      [deptId]
+    );
+    const academicYear = years[0]?.academic_year;
+    if (!academicYear) {
+      return res.json({ success: true, statuses: {}, academicYear: null });
+    }
+    // For each year, check if there is at least one record and status is 'finished'
+    const result = {};
+    for (const year of yearSlots) {
+      // Query for at least one record for this year, dept, academic year
+      const [rows] = await pool.query(
+        `SELECT status FROM student_enrollment WHERE dept_id = ? AND academic_year = ? AND year = ? LIMIT 1`,
+        [deptId, academicYear, year]
+      );
+      if (rows.length > 0 && rows[0].status && rows[0].status.trim().toLowerCase() === 'finished') {
+        result[year] = 'completed';
+      } else {
+        result[year] = 'incomplete';
+      }
+    }
+    res.json({ success: true, statuses: result, academicYear });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
   }
 };
