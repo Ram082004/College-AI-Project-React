@@ -14,7 +14,9 @@ const {
   getEnrollmentYearStatuses,
   getEnrollmentYearCompletionStatus,
   getExaminationYearCompletionStatus,
-  getHodName // <-- Add this line
+  getHodName,
+  getDeclarationLockStatus,
+  lockDeclaration
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- existing
 
@@ -36,6 +38,7 @@ router.post('/student-examination/update-status', updateExaminationStatus);
 router.post('/student-enrollment/submit-declaration', submitEnrollmentDeclaration);
 router.post('/student-examination/submit-declaration', submitExaminationDeclaration);
 router.get('/student-enrollment/year-statuses/:deptId', getEnrollmentYearStatuses);
+router.get('/student-examination/year-statuses/:deptId', getEnrollmentYearStatuses);
 
 // Add this route:
 router.get('/department-user/academic-year/:deptId', async (req, res) => {
@@ -67,5 +70,13 @@ router.get('/student-examination/year-completion-status/:deptId', getExamination
 
 // Add this route to get HOD name for a department
 router.get('/department-user/hod/:deptId', getHodName);
+
+// Add this route to get declaration lock status
+router.get('/student-enrollment/declaration-lock-status', getDeclarationLockStatus);
+router.get('/student-examination/declaration-lock-status', getDeclarationLockStatus);
+
+// Add this POST route for locking declaration
+router.post('/student-enrollment/lock-declaration', lockDeclaration);
+router.post('/student-examination/lock-declaration', lockDeclaration);
 
 module.exports = router;

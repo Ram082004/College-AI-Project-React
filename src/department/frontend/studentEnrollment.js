@@ -78,6 +78,8 @@ export default function StudentEnrollment({ userData }) {
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [yearCompletionStatus, setYearCompletionStatus] = useState({});
   const [hodName, setHodName] = useState('');
+  const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
+
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -175,6 +177,31 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
+  const checkDeclarationLockStatus = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/student-enrollment/declaration-lock-status`,
+        {
+          params: {
+            deptId: userData?.dept_id,
+            year: yearSlots.join(', '), // or the relevant years
+            type: 'Student Enrollment'
+          },
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        }
+      );
+      setIsDeclarationLocked(res.data.locked);
+    } catch {
+      setIsDeclarationLocked(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userData?.dept_id) {
+      checkDeclarationLockStatus();
+    }
+  }, [userData]);
+
   const handleEnrollmentSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setSubmitting(true);
@@ -268,14 +295,24 @@ export default function StudentEnrollment({ userData }) {
     setFinalSubmitting(true);
     try {
       await axios.post(
-        'http://localhost:5000/api/student-enrollment/submit-declaration', // or student-examination/submit-declaration
+        'http://localhost:5000/api/student-enrollment/submit-declaration',
         {
           dept_id: userData?.dept_id,
           name: userData?.name || userData?.username,
           department: userData?.department,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
-          type: 'Student Enrollment', // or 'Student Examination'
+          type: 'Student Enrollment',
           hod: hodName
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      // Lock the declaration after successful submission
+      await axios.post(
+        'http://localhost:5000/api/student-enrollment/lock-declaration',
+        {
+          dept_id: userData?.dept_id,
+          year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
+          type: 'Student Enrollment'
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -284,6 +321,7 @@ export default function StudentEnrollment({ userData }) {
         setShowDeclaration(false);
         setFinalSubmitSuccess(false);
         setDeclarationYearSlot(null);
+        checkDeclarationLockStatus(); // Refresh lock status
       }, 2000);
     } catch (err) {
       setGlobalMessage({ type: 'error', text: 'Failed to submit declaration' });
@@ -426,17 +464,24 @@ export default function StudentEnrollment({ userData }) {
                 })}
               </div>
               {/* Show Final Declaration Button if all years are finished */}
-              {isAllYearsCompleted() && (
+              {isAllYearsCompleted() && !isDeclarationLocked && (
                 <div className="flex justify-end mt-6">
                   <button
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
                     onClick={() => {
-                      setDeclarationYearSlot(yearSlots); // or getAllFinishedYears() for examination
+                      setDeclarationYearSlot(yearSlots);
                       openDeclarationModal();
                     }}
                   >
                     Final Submission
                   </button>
+                </div>
+              )}
+              {isDeclarationLocked && (
+                <div className="flex justify-end mt-6">
+                  <span className="px-6 py-3 rounded-xl bg-gray-300 text-gray-600 font-semibold shadow">
+                    Final Submission Locked
+                  </span>
                 </div>
               )}
             </div>
@@ -767,6 +812,7 @@ export default function StudentEnrollment({ userData }) {
                 >
                   Cancel
                 </button>
+                {/* Only show Confirm & Submit button, remove Lock Declaration */}
                 <button
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 
                            text-white font-medium hover:from-blue-700 hover:to-indigo-700 

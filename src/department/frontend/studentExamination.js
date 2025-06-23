@@ -8,7 +8,6 @@ const API = {
   EXAMINATION: `${API_BASE}/examination-summary`,
   student_examination: (deptId) => `${API_BASE}/student-examination/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
-  hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
 };
 
 const categoryMaster = {
@@ -79,14 +78,14 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [yearStatuses, setYearStatuses] = useState({});
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
-  const [hodName, setHodName] = useState(''); // <-- Add this line
+  const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
+  const [hodName, setHodName] = useState('');
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchExaminationDetails();
     fetchYearStatuses();
-    fetchHodName(); // <-- Add this line
     // eslint-disable-next-line
   }, [userData]);
 
@@ -120,7 +119,7 @@ export default function StudentExamination({ userData, yearSlots }) {
     try {
       const yearsParam = encodeURIComponent(yearSlots.join(','));
       const res = await axios.get(
-        `http://localhost:5000/api/student-enrollment/year-statuses/${userData.dept_id}?years=${yearsParam}`,
+        `http://localhost:5000/api/student-examination/year-statuses/${userData.dept_id}?years=${yearsParam}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
       if (res.data.success) {
@@ -133,20 +132,6 @@ export default function StudentExamination({ userData, yearSlots }) {
     } catch {
       setYearStatuses({});
       setStatusAcademicYear('');
-    }
-  };
-
-  // Fetch HOD name
-  const fetchHodName = async () => {
-    try {
-      const res = await axios.get(
-        API.hod_name(userData.dept_id),
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
-      if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
-      else setHodName('');
-    } catch {
-      setHodName('');
     }
   };
 
@@ -255,8 +240,32 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
-  // Updated examination declaration submit function
+  const fetchHodName = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/department-user/hod/${userData.dept_id}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
+      else setHodName('');
+    } catch {
+      setHodName('');
+    }
+  };
+
+  useEffect(() => {
+    if (userData?.dept_id) {
+      checkDeclarationLockStatus();
+      fetchHodName();
+    }
+  }, [userData]);
+
   const handleFinalDeclarationSubmit = async () => {
+    if (!hodName) {
+      setGlobalMessage({ type: 'error', text: 'HOD name is missing. Please contact admin.' });
+      setFinalSubmitting(false);
+      return;
+    }
     setFinalSubmitting(true);
     try {
       await axios.post(
@@ -271,11 +280,22 @@ export default function StudentExamination({ userData, yearSlots }) {
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
+      // Lock the declaration after successful submission
+      await axios.post(
+        'http://localhost:5000/api/student-examination/lock-declaration',
+        {
+          dept_id: userData?.dept_id,
+          year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
+          type: 'Student Examination'
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
       setFinalSubmitSuccess(true);
       setTimeout(() => {
         setShowDeclaration(false);
         setFinalSubmitSuccess(false);
         setDeclarationYearSlot(null);
+        checkDeclarationLockStatus(); // Refresh lock status
       }, 2000);
     } catch (err) {
       setGlobalMessage({ type: 'error', text: 'Failed to submit declaration' });
@@ -283,6 +303,31 @@ export default function StudentExamination({ userData, yearSlots }) {
       setFinalSubmitting(false);
     }
   };
+
+  const checkDeclarationLockStatus = async () => {
+    try {
+      const res = await axios.get(
+        'http://localhost:5000/api/student-examination/declaration-lock-status',
+        {
+          params: {
+            deptId: userData?.dept_id,
+            year: yearSlots.join(', '),
+            type: 'Student Examination'
+          },
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        }
+      );
+      setIsDeclarationLocked(res.data.locked);
+    } catch {
+      setIsDeclarationLocked(false);
+    }
+  };
+
+  useEffect(() => {
+    if (userData?.dept_id) {
+      checkDeclarationLockStatus();
+    }
+  }, [userData]);
 
   return (
     <>
@@ -428,7 +473,7 @@ export default function StudentExamination({ userData, yearSlots }) {
                 })}
               </div>
               {/* Show Final Declaration Button if all years are finished */}
-              {isAllYearsFinished() && (
+              {isAllYearsFinished() && !isDeclarationLocked && (
                 <div className="flex justify-end mt-6">
                   <button
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
@@ -439,6 +484,13 @@ export default function StudentExamination({ userData, yearSlots }) {
                   >
                     Final Submission
                   </button>
+                </div>
+              )}
+              {isDeclarationLocked && (
+                <div className="flex justify-end mt-6">
+                  <span className="px-6 py-3 rounded-xl bg-gray-300 text-gray-600 font-semibold shadow">
+                    Final Submission Locked
+                  </span>
                 </div>
               )}
             </div>
@@ -660,13 +712,6 @@ export default function StudentExamination({ userData, yearSlots }) {
                   <p className="text-sm font-medium text-gray-500">Completed Years</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {(declarationYearSlot || []).join(', ')}
-                  </p>
-                </div>
-                {/* Add HOD Name */}
-                <div>
-                  <p className="text-sm font-medium text-gray-500">HOD Name</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
                   </p>
                 </div>
               </div>
