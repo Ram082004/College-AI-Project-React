@@ -59,7 +59,8 @@ export default function Dashboard() {
     academic_year: '',
     degree_level: '',
     duration: '',
-    password: ''
+    password: '',
+    hod: '', // <-- Add this
   });
   const [newUser, setNewUser] = useState({
     name: '',
@@ -71,7 +72,8 @@ export default function Dashboard() {
     academic_year: '',
     degree_level: '',
     duration: '',
-    password: ''
+    password: '',
+    hod: '', // <-- Add this
   });
   const [academicYears, setAcademicYears] = useState([]);
 
@@ -297,7 +299,8 @@ export default function Dashboard() {
       academic_year: user.academic_year || '',
       degree_level: user.degree_level || '',
       duration: user.duration || '',
-      password: ''
+      password: '',
+      hod: user.hod || '', // <-- Add this
     });
   };
 
@@ -310,7 +313,12 @@ export default function Dashboard() {
       email: '',
       mobile: '',
       department: '',
-      dept_id: '', 
+      dept_id: '',
+      academic_year: '',
+      degree_level: '',
+      duration: '',
+      password: '',
+      hod: '', // <-- Add this
     });
   };
 
@@ -826,6 +834,7 @@ export default function Dashboard() {
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Degree Level</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Duration</th> {/* Add this */}
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">HOD</th>
                           <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </>
                       ) : (
@@ -1042,11 +1051,29 @@ export default function Dashboard() {
                                     <td className="px-4 py-2">
                                       <input
                                         type="text"
+                                        name="duration"
+                                        value={deptUserEditForm.duration}
+                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })}
+                                        className="border px-2 py-1 rounded"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
                                         name="password"
                                         value={deptUserEditForm.password}
                                         onChange={e => setDeptUserEditForm({ ...deptUserEditForm, password: e.target.value })}
                                         className="border px-2 py-1 rounded"
                                         placeholder="New Password"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        name="hod"
+                                        value={deptUserEditForm.hod}
+                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })}
+                                        className="border px-2 py-1 rounded"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
@@ -1083,6 +1110,7 @@ export default function Dashboard() {
                                     </td>
                                     <td className="px-4 py-2">{user.duration}</td>
                                     <td className="px-4 py-2 font-mono text-xs break-all">{user.password}</td>
+                                    <td className="px-4 py-2">{user.hod}</td>
                                     <td className="px-4 py-2">
                                      <div className="flex items-center gap-2">
                                       <button
@@ -1371,6 +1399,17 @@ export default function Dashboard() {
                       <option value="PG">PG (2 Years)</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">HOD</label>
+                    <input
+                      type="text"
+                      name="hod"
+                      value={newUser.hod}
+                      onChange={handleNewUserChange}
+                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400"
+                      required
+                    />
+                  </div>
                   {/* Empty div for grid alignment */}
                   <div className="hidden md:block"></div>
                   <div className="md:col-span-2">
@@ -1589,27 +1628,18 @@ export default function Dashboard() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
-                    <input
-                      type="text"
-                      name="password"
-                      value={newOfficeUser.password}
-                      onChange={handleNewOfficeUserChange}
-                      className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400"
-                      required
-                    />
+                    <button
+                      type="submit"
+                      className={`w-full py-2 mt-2 rounded-lg font-semibold text-white transition ${
+                        officeUserLoading
+                          ? 'bg-blue-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500'
+                      }`}
+                      disabled={officeUserLoading}
+                    >
+                      {officeUserLoading ? 'Adding...' : 'Add Office User'}
+                    </button>
                   </div>
-                  <button
-                    type="submit"
-                    className={`w-full py-2 mt-2 rounded-lg font-semibold text-white transition ${
-                      officeUserLoading
-                        ? 'bg-blue-300 cursor-not-allowed'
-                        : 'bg-gradient-to-r from-blue-600 to-blue-400 hover:from-blue-700 hover:to-blue-500'
-                    }`}
-                    disabled={officeUserLoading}
-                  >
-                    {officeUserLoading ? 'Adding...' : 'Add Office User'}
-                  </button>
                 </form>
               </div>
             </motion.div>

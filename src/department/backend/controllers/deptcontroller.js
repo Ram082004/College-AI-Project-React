@@ -606,3 +606,41 @@ exports.getExaminationYearCompletionStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
   }
 };
+
+// Lock declaration for a department/year/type
+exports.lockDeclaration = async (req, res) => {
+  try {
+    const { dept_id, year, type } = req.body;
+    if (!dept_id || !year || !type) {
+      return res.status(400).json({ success: false, message: 'dept_id, year, and type are required' });
+    }
+    const [result] = await pool.query(
+      `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ?`,
+      [dept_id, year, type]
+    );
+    res.json({ success: true, message: 'Declaration locked successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to lock declaration', error: error.message });
+  }
+};
+
+// Controller to get HOD name for a department
+exports.getHodName = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    if (!deptId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
+    }
+    // Use the correct column name 'hod'
+    const [rows] = await pool.query(
+      'SELECT hod FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1',
+      [deptId]
+    );
+    if (rows.length === 0 || !rows[0].hod) {
+      return res.json({ success: false, hod_name: null, message: 'HOD name not found' });
+    }
+    res.json({ success: true, hod_name: rows[0].hod });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch HOD name', error: error.message });
+  }
+};

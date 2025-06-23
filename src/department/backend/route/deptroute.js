@@ -13,9 +13,10 @@ const {
   submitExaminationDeclaration,
   getEnrollmentYearStatuses,
   getEnrollmentYearCompletionStatus,
-  getExaminationYearCompletionStatus
+  getExaminationYearCompletionStatus,
+  getHodName // <-- Add this line
 } = require('../controllers/deptcontroller');
-const { pool } = require('../../../Admin/backend/config/db'); // <-- Add this line
+const { pool } = require('../../../Admin/backend/config/db'); // <-- existing
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -63,5 +64,8 @@ router.get('/student-enrollment/submit-declaration', (req, res) => {
 // Add this route for year completion status
 router.get('/student-enrollment/year-completion-status/:deptId', getEnrollmentYearCompletionStatus);
 router.get('/student-examination/year-completion-status/:deptId', getExaminationYearCompletionStatus);
+
+// Add this route to get HOD name for a department
+router.get('/department-user/hod/:deptId', getHodName);
 
 module.exports = router;

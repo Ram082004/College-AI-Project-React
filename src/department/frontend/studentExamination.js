@@ -8,6 +8,7 @@ const API = {
   EXAMINATION: `${API_BASE}/examination-summary`,
   student_examination: (deptId) => `${API_BASE}/student-examination/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
+  hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
 };
 
 const categoryMaster = {
@@ -78,14 +79,14 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [yearStatuses, setYearStatuses] = useState({});
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
-  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
+  const [hodName, setHodName] = useState(''); // <-- Add this line
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchExaminationDetails();
     fetchYearStatuses();
-    fetchYearCompletionStatus();
+    fetchHodName(); // <-- Add this line
     // eslint-disable-next-line
   }, [userData]);
 
@@ -135,25 +136,17 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
-  const fetchYearCompletionStatus = async () => {
+  // Fetch HOD name
+  const fetchHodName = async () => {
     try {
-      const res = await fetch(`${API_BASE}/student-examination/year-completion-status/${userData.dept_id}`);
-      if (!res.ok) {
-        setYearCompletionStatus({});
-        setStatusAcademicYear('');
-        return;
-      }
-      const data = await res.json();
-      if (data.success) {
-        setYearCompletionStatus(data.statuses);
-        setStatusAcademicYear(data.academicYear);
-      } else {
-        setYearCompletionStatus({});
-        setStatusAcademicYear('');
-      }
+      const res = await axios.get(
+        API.hod_name(userData.dept_id),
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
+      else setHodName('');
     } catch {
-      setYearCompletionStatus({});
-      setStatusAcademicYear('');
+      setHodName('');
     }
   };
 
@@ -163,10 +156,6 @@ export default function StudentExamination({ userData, yearSlots }) {
     return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
   };
 
-  const isAllYearsCompleted = () => {
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'completed');
-  };
 
   const getAllFinishedYears = () => {
     const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -670,6 +659,13 @@ export default function StudentExamination({ userData, yearSlots }) {
                   <p className="text-sm font-medium text-gray-500">Completed Years</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {(declarationYearSlot || []).join(', ')}
+                  </p>
+                </div>
+                {/* Add HOD Name */}
+                <div>
+                  <p className="text-sm font-medium text-gray-500">HOD Name</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
                   </p>
                 </div>
               </div>

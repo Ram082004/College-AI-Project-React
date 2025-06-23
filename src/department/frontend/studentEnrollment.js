@@ -12,6 +12,7 @@ const API = {
   ENROLLMENT: `${API_BASE}/enrollment-summary`,
   student_enrollment: (deptId) => `${API_BASE}/student-enrollment/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
+  hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
 };
 
 const categoryMaster = {
@@ -74,9 +75,9 @@ export default function StudentEnrollment({ userData }) {
   const [showDeclaration, setShowDeclaration] = useState(false);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
-  const [yearStatuses, setYearStatuses] = useState({});
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [yearCompletionStatus, setYearCompletionStatus] = useState({});
+  const [hodName, setHodName] = useState(''); // <-- Add this line
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -84,6 +85,7 @@ export default function StudentEnrollment({ userData }) {
     fetchStudentDetails();
     fetchYearStatuses();
     fetchYearCompletionStatus();
+    fetchHodName(); // <-- Add this line
     // eslint-disable-next-line
   }, [userData]);
 
@@ -119,14 +121,11 @@ export default function StudentEnrollment({ userData }) {
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
       if (res.data.success) {
-        setYearStatuses(res.data.statuses || {});
         setStatusAcademicYear(res.data.academicYear || '');
       } else {
-        setYearStatuses({});
         setStatusAcademicYear('');
       }
     } catch {
-      setYearStatuses({});
       setStatusAcademicYear('');
     }
   };
@@ -161,6 +160,19 @@ export default function StudentEnrollment({ userData }) {
       setGlobalMessage({ type: 'error', text: 'Network error fetching year completion status' });
       setYearCompletionStatus({});
       setStatusAcademicYear('');
+    }
+  };
+
+  const fetchHodName = async () => {
+    try {
+      const res = await axios.get(
+        API.hod_name(userData.dept_id),
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
+      else setHodName('');
+    } catch {
+      setHodName('');
     }
   };
 
@@ -280,10 +292,6 @@ export default function StudentEnrollment({ userData }) {
     return yearSlots.every((slot) => yearCompletionStatus[slot] === 'completed');
   };
 
-  const getAllFinishedYears = () => {
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    return yearSlots.filter((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
-  };
 
   return (
     <>
@@ -696,6 +704,13 @@ export default function StudentEnrollment({ userData }) {
                   <p className="text-sm font-medium text-gray-500">Completed Years</p>
                   <p className="text-lg font-semibold text-gray-900">
                     {(declarationYearSlot || []).join(', ')}
+                  </p>
+                </div>
+                {/* Add HOD Name */}
+                <div>
+                  <p className="text-sm font-medium text-gray-500">HOD Name</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
                   </p>
                 </div>
               </div>

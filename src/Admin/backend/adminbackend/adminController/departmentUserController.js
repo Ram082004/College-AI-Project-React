@@ -4,7 +4,7 @@ const { pool } = require('../../config/db');
 exports.getAllDepartmentUsers = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, username, email, mobile, department, dept_id, academic_year, degree_level, duration, password, locked FROM department_users'
+      'SELECT id, name, username, email, mobile, department, dept_id, academic_year, degree_level, duration, password, locked, hod FROM department_users'
     );
     res.json({ success: true, users: rows });
   } catch (error) {
@@ -18,7 +18,7 @@ exports.getDepartmentUserById = async (req, res) => {
   try {
     const { id } = req.params;
     const [rows] = await pool.query(
-      'SELECT id, name, username, email, mobile, department, dept_id, academic_year, password, degree_level, duration, locked FROM department_users WHERE id = ?',
+      'SELECT id, name, username, email, mobile, department, dept_id, academic_year, password, degree_level, duration, locked, hod FROM department_users WHERE id = ?',
       [id]
     );
     if (rows.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
@@ -32,9 +32,9 @@ exports.getDepartmentUserById = async (req, res) => {
 // Add a new department user
 exports.addDepartmentUser = async (req, res) => {
   try {
-    const { name, username, email, mobile, department, dept_id, academic_year, degree_level, password } = req.body;
+    const { name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod } = req.body;
 
-    if (!name || !username || !email || !mobile || !department || !dept_id || !academic_year || !degree_level || !password) {
+    if (!name || !username || !email || !mobile || !department || !dept_id || !academic_year || !degree_level || !password || !hod) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
 
@@ -47,13 +47,12 @@ exports.addDepartmentUser = async (req, res) => {
       [username, email]
     );
     if (exists.length > 0) {
-      
       return res.status(409).json({ success: false, message: 'Username or Email already exists' });
     }
 
     const [result] = await pool.query(
-      'INSERT INTO department_users (name, username, email, mobile, department, dept_id, academic_year, degree_level, password, locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)',
-      [name, username, email, mobile, department, dept_id, academic_year, degree_level, password]
+      'INSERT INTO department_users (name, username, email, mobile, department, dept_id, academic_year, degree_level, password, locked, hod) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)',
+      [name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod]
     );
 
     if (result.affectedRows > 0) {
@@ -71,12 +70,9 @@ exports.addDepartmentUser = async (req, res) => {
 exports.updateDepartmentUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, email, mobile, department, dept_id, academic_year, degree_level, password } = req.body;
+    const { name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod } = req.body;
 
-    // Debug: log incoming payload
-    console.log('Update department user payload:', req.body);
-
-    if (!name || !username || !email || !mobile || !department || !dept_id || !academic_year || !degree_level) {
+    if (!name || !username || !email || !mobile || !department || !dept_id || !academic_year || !degree_level || !hod) {
       return res.status(400).json({ success: false, message: 'All fields except password are required' });
     }
 
@@ -84,7 +80,6 @@ exports.updateDepartmentUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Degree level must be UG or PG' });
     }
 
-    // Debug: check if user exists before update
     const [existing] = await pool.query('SELECT id FROM department_users WHERE id = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
@@ -92,13 +87,13 @@ exports.updateDepartmentUser = async (req, res) => {
 
     if (password && password.trim() !== '') {
       await pool.query(
-        'UPDATE department_users SET name = ?, username = ?, email = ?, mobile = ?, department = ?, dept_id = ?, academic_year = ?, degree_level = ?, password = ? WHERE id = ?',
-        [name, username, email, mobile, department, dept_id, academic_year, degree_level, password, id]
+        'UPDATE department_users SET name = ?, username = ?, email = ?, mobile = ?, department = ?, dept_id = ?, academic_year = ?, degree_level = ?, password = ?, hod = ? WHERE id = ?',
+        [name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod, id]
       );
     } else {
       await pool.query(
-        'UPDATE department_users SET name = ?, username = ?, email = ?, mobile = ?, department = ?, dept_id = ?, academic_year = ?, degree_level = ? WHERE id = ?',
-        [name, username, email, mobile, department, dept_id, academic_year, degree_level, id]
+        'UPDATE department_users SET name = ?, username = ?, email = ?, mobile = ?, department = ?, dept_id = ?, academic_year = ?, degree_level = ?, hod = ? WHERE id = ?',
+        [name, username, email, mobile, department, dept_id, academic_year, degree_level, hod, id]
       );
     }
 
