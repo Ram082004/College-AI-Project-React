@@ -77,7 +77,7 @@ export default function StudentEnrollment({ userData }) {
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
   const [statusAcademicYear, setStatusAcademicYear] = useState('');
   const [yearCompletionStatus, setYearCompletionStatus] = useState({});
-  const [hodName, setHodName] = useState(''); // <-- Add this line
+  const [hodName, setHodName] = useState('');
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -165,10 +165,9 @@ export default function StudentEnrollment({ userData }) {
 
   const fetchHodName = async () => {
     try {
-      const res = await axios.get(
-        API.hod_name(userData.dept_id),
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
+      const res = await axios.get(API.hod_name(userData.dept_id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
       if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
       else setHodName('');
     } catch {
@@ -261,16 +260,22 @@ export default function StudentEnrollment({ userData }) {
   };
 
   const handleFinalDeclarationSubmit = async () => {
+    if (!hodName) {
+      setGlobalMessage({ type: 'error', text: 'HOD name is missing. Please contact admin.' });
+      setFinalSubmitting(false);
+      return;
+    }
     setFinalSubmitting(true);
     try {
       await axios.post(
-        'http://localhost:5000/api/student-enrollment/submit-declaration',
+        'http://localhost:5000/api/student-enrollment/submit-declaration', // or student-examination/submit-declaration
         {
-          dept_id: userData?.dept_id, // <-- This line is correct
+          dept_id: userData?.dept_id,
           name: userData?.name || userData?.username,
           department: userData?.department,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
-          type: 'Student Enrollment'
+          type: 'Student Enrollment', // or 'Student Examination'
+          hod: hodName
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -292,6 +297,10 @@ export default function StudentEnrollment({ userData }) {
     return yearSlots.every((slot) => yearCompletionStatus[slot] === 'completed');
   };
 
+  const openDeclarationModal = () => {
+    fetchHodName(); // Always fetch latest HOD name before opening modal
+    setShowDeclaration(true);
+  };
 
   return (
     <>
@@ -422,8 +431,8 @@ export default function StudentEnrollment({ userData }) {
                   <button
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
                     onClick={() => {
-                      setDeclarationYearSlot(yearSlots);
-                      setShowDeclaration(true);
+                      setDeclarationYearSlot(yearSlots); // or getAllFinishedYears() for examination
+                      openDeclarationModal();
                     }}
                   >
                     Final Submission
@@ -706,7 +715,6 @@ export default function StudentEnrollment({ userData }) {
                     {(declarationYearSlot || []).join(', ')}
                   </p>
                 </div>
-                {/* Add HOD Name */}
                 <div>
                   <p className="text-sm font-medium text-gray-500">HOD Name</p>
                   <p className="text-lg font-semibold text-gray-900">

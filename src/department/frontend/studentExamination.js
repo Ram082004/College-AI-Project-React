@@ -266,7 +266,8 @@ export default function StudentExamination({ userData, yearSlots }) {
           name: userData?.name || userData?.username,
           department: userData?.department,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
-          type: 'Student Examination'
+          type: 'Student Examination',
+          hod: hodName // <-- Add this line
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );

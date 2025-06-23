@@ -441,58 +441,38 @@ exports.updateExaminationStatus = async (req, res) => {
 // Submit enrollment declaration
 exports.submitEnrollmentDeclaration = async (req, res) => {
   try {
-    const { dept_id, name, department, year, type } = req.body;
-    if (!dept_id || !name || !department || !year || !type) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'All fields are required' 
-      });
+    const { dept_id, name, department, year, type, hod } = req.body;
+    if (!dept_id || !name || !department || !year || !type || !hod) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type]
+       (dept_id, name, department, year, type, hod, submitted_at) 
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [dept_id, name, department, year, type, hod]
     );
-    res.json({ 
-      success: true, 
-      message: 'Enrollment declaration submitted successfully' 
-    });
+    res.json({ success: true, message: 'Enrollment declaration submitted successfully' });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to submit enrollment declaration', 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to submit enrollment declaration', error: error.message });
   }
 };
 
 // Submit examination declaration
 exports.submitExaminationDeclaration = async (req, res) => {
   try {
-    const { dept_id, name, department, year, type } = req.body;
-    if (!dept_id || !name || !department || !year || !type) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'All fields are required' 
-      });
+    const { dept_id, name, department, year, type, hod } = req.body;
+    if (!dept_id || !name || !department || !year || !type || !hod) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type]
+       (dept_id, name, department, year, type, hod, submitted_at) 
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [dept_id, name, department, year, type, hod]
     );
-    res.json({ 
-      success: true, 
-      message: 'Examination declaration submitted successfully' 
-    });
+    res.json({ success: true, message: 'Examination declaration submitted successfully' });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to submit declaration', 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, message: 'Failed to submit declaration', error: error.message });
   }
 };
 
