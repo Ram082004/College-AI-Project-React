@@ -68,6 +68,7 @@ export default function StudentEnrollment({ userData }) {
   });
   const [studentDetails, setStudentDetails] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [showCategoryInfo, setShowCategoryInfo] = useState(false);
   const [showSubcategoryInfo, setShowSubcategoryInfo] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
@@ -79,6 +80,8 @@ export default function StudentEnrollment({ userData }) {
   const [yearCompletionStatus, setYearCompletionStatus] = useState({});
   const [hodName, setHodName] = useState('');
   const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
+  const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
+  const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
 
 
   useEffect(() => {
@@ -90,6 +93,58 @@ export default function StudentEnrollment({ userData }) {
     fetchHodName(); // <-- Add this line
     // eslint-disable-next-line
   }, [userData]);
+
+  // Fetch enrollment data for the selected year slot
+  const fetchEnrollmentDataForYear = async (yearSlot) => {
+    if (!userData?.dept_id) return;
+    setLoadingYearData(true);
+    try {
+      const res = await axios.get(API.student_enrollment(userData.dept_id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      if (res.data.success && Array.isArray(res.data.details)) {
+        // Filter for the selected year slot and latest academic year
+        const filtered = res.data.details.filter(
+          (row) => row.year === yearSlot
+        );
+        // Build enrollmentData object
+        const newData = {};
+        subcategories.forEach(sub => {
+          newData[sub] = {};
+          categories.forEach(cat => {
+            newData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+          });
+        });
+        filtered.forEach(row => {
+          if (
+            newData[row.subcategory] &&
+            newData[row.subcategory][row.category]
+          ) {
+            newData[row.subcategory][row.category] = {
+              Male: Number(row.male_count) || 0,
+              Female: Number(row.female_count) || 0,
+              Transgender: Number(row.transgender_count) || 0
+            };
+          }
+        });
+        setEnrollmentData(newData);
+      } else {
+        // No data for this year, reset to zero
+        const emptyData = {};
+        subcategories.forEach(sub => {
+          emptyData[sub] = {};
+          categories.forEach(cat => {
+            emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+          });
+        });
+        setEnrollmentData(emptyData);
+      }
+    } catch {
+      setGlobalMessage({ type: 'error', text: 'Failed to fetch enrollment data for year' });
+    } finally {
+      setLoadingYearData(false);
+    }
+  };
 
   const fetchAcademicYears = async () => {
     try {
@@ -212,7 +267,6 @@ export default function StudentEnrollment({ userData }) {
         setSubmitting(false);
         return;
       }
-
       const enrollmentRecords = [];
       Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
         Object.entries(categoryMaster).forEach(([catId, catName]) => {
@@ -232,7 +286,6 @@ export default function StudentEnrollment({ userData }) {
           });
         });
       });
-
       const response = await axios.post(
         API.ENROLLMENT,
         { records: enrollmentRecords },
@@ -243,23 +296,10 @@ export default function StudentEnrollment({ userData }) {
           }
         }
       );
-
       if (response.data.success) {
         setGlobalMessage({ type: 'success', text: 'Enrollment data added successfully' });
-        setEnrollmentData(() => {
-          const data = {};
-          subcategories.forEach(sub => {
-            data[sub] = {};
-            categories.forEach(cat => {
-              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-            });
-          });
-          return data;
-        });
         fetchStudentDetails();
-        if (currentYearSlot < yearSlots.length - 1) {
-          setCurrentYearSlot(currentYearSlot + 1);
-        }
+        // Optionally clear form or advance year
       }
     } catch (error) {
       setGlobalMessage({ type: 'error', text: error.response?.data?.message || 'Failed to add enrollment data' });
@@ -340,6 +380,74 @@ export default function StudentEnrollment({ userData }) {
     setShowDeclaration(true);
   };
 
+  const handleUpdateEnrollment = async () => {
+    if (!isUpdateMode) {
+      // First click: fetch and fill data
+      setUpdating(true);
+      try {
+        await fetchEnrollmentDataForYear(yearSlots[currentYearSlot]);
+        setIsUpdateMode(true);
+        setGlobalMessage({ type: 'info', text: 'Enrollment data loaded. You can now update and save.' });
+      } catch {
+        setGlobalMessage({ type: 'error', text: 'Failed to fetch enrollment data for update.' });
+      } finally {
+        setUpdating(false);
+        setTimeout(() => setGlobalMessage(null), 3000);
+      }
+      return;
+    }
+
+    // Second click: update data
+    setUpdating(true);
+    try {
+      const selectedAcademicYear = academicYears[0];
+      if (!selectedAcademicYear) {
+        setGlobalMessage({ type: 'error', text: 'Academic year not found' });
+        setUpdating(false);
+        return;
+      }
+      const updateRecords = [];
+      Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
+        Object.entries(categoryMaster).forEach(([catId, catName]) => {
+          Object.entries(genderMaster).forEach(([genderId, genderName]) => {
+            const count = enrollmentData[subcatName][catName][genderName];
+            updateRecords.push({
+              academic_year: selectedAcademicYear,
+              dept_id: userData?.dept_id,
+              category_id: parseInt(catId),
+              subcategory_id: parseInt(subcatId),
+              gender_id: parseInt(genderId),
+              count: parseInt(count),
+              year: yearSlots[currentYearSlot]
+            });
+          });
+        });
+      });
+      const response = await axios.put(
+        'http://localhost:5000/api/student-enrollment/update',
+        { records: updateRecords },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      if (response.data.success) {
+        setGlobalMessage({ type: 'success', text: 'Enrollment data updated successfully' });
+        fetchStudentDetails();
+        setIsUpdateMode(false); // Reset update mode after successful update
+      } else {
+        setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update enrollment data' });
+      }
+    } catch (error) {
+      setGlobalMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update enrollment data' });
+    } finally {
+      setUpdating(false);
+      setTimeout(() => setGlobalMessage(null), 3000);
+    }
+  };
+
   return (
     <>
       <div className="space-y-10 max-w-7xl mx-auto px-4 py-8">
@@ -388,11 +496,18 @@ export default function StudentEnrollment({ userData }) {
                 value={yearSlots[currentYearSlot]}
                 onChange={e => setCurrentYearSlot(yearSlots.indexOf(e.target.value))}
                 className="w-full px-4 py-2 border rounded-lg bg-white text-base"
+                disabled={loadingYearData}
               >
                 {yearSlots.map((slot) => (
                   <option key={slot} value={slot}>{slot}</option>
                 ))}
               </select>
+              {loadingYearData && (
+                <div className="flex items-center gap-2 mt-2 text-blue-600 text-sm">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent" />
+                  Loading year data...
+                </div>
+              )}
             </div>
             <div className="flex-1 flex gap-2 justify-end items-end">
               <button
@@ -548,12 +663,12 @@ export default function StudentEnrollment({ userData }) {
           {/* Submit Button */}
           <button
             type="button"
-            disabled={submitting}
+            disabled={submitting || loadingYearData}
             onClick={() => setShowConfirm(true)}
             className={`w-full max-w-md mx-auto py-4 px-6 rounded-xl font-semibold text-white text-lg
               shadow-lg shadow-blue-500/20 
-              ${submitting 
-                ? 'bg-gray-400 cursor-not-allowed' 
+              ${submitting || loadingYearData
+                ? 'bg-gray-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
               }
               transform transition-all duration-200 hover:-translate-y-0.5`}
@@ -567,6 +682,31 @@ export default function StudentEnrollment({ userData }) {
               'Submit Enrollment Data'
             )}
           </button>
+
+          {/* Update Enrollment Button */}
+          {!isDeclarationLocked && (
+            <button
+              type="button"
+              disabled={updating || loadingYearData}
+              onClick={handleUpdateEnrollment}
+              className={`w-full max-w-md mx-auto mt-4 py-4 px-6 rounded-xl font-semibold text-white text-lg
+                shadow-lg shadow-blue-500/20
+                ${updating || loadingYearData
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : isUpdateMode
+                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                    : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                }
+                transform transition-all duration-200 hover:-translate-y-0.5`}
+            >
+              {updating ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
+                  <span>Updating...</span>
+                </div>
+              ) : isUpdateMode ? 'Save Changes' : 'Edit Enrollment Data'}
+            </button>
+          )}
         </form>
 
         {/* Student Details Table */}

@@ -10,8 +10,10 @@ import {
   RiSearchLine,
   RiAddLine,
   RiCloseLine,
-  RiBuilding2Line
+  RiBuilding2Line,
+  RiFileListLine
 } from 'react-icons/ri';
+import SubmittedData from './SubmittedData';
 
 // API endpoints
 const API_BASE = 'http://localhost:5000/api';
@@ -664,6 +666,19 @@ export default function Dashboard() {
               <RiBuilding2Line className="text-xl" />
               <span>Office Users</span>
             </motion.button>
+
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('submittedData')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'submittedData'
+                  ? 'bg-blue-50 text-blue-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiFileListLine className="text-xl" />
+              <span>Submitted Data</span>
+            </motion.button>
           </nav>
         </div>
 
@@ -720,279 +735,175 @@ export default function Dashboard() {
 
         {/* Page Content */}
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {activeTab === 'admin'
-                ? 'Admin Management'
-                : activeTab === 'department'
-                ? 'Department Users'
-                : 'Office Users'}
-            </h1>
-            <p className="mt-1 text-gray-500">
-              Manage your {activeTab === 'admin'
-                ? 'administrators'
-                : activeTab === 'department'
-                ? 'department users'
-                : 'office users'} here
-            </p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <motion.div
-              whileHover={{ y: -4 }}
-              className="bg-white p-6 rounded-xl shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Users</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">
-                    {activeTab === 'admin' ? admins.length : activeTab === 'department' ? departmentUsers.length : officeUsers.length}
-                  </h3>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
-                  <RiTeamLine className="text-xl text-blue-600" />
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Add more stat cards as needed */}
-          </div>
-
-          {/* Main Content Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden"
-          >
-            <div className="p-6">
-              {/* Content header with actions */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-semibold text-gray-900">
+          {activeTab === 'submittedData' ? (
+            <SubmittedData />
+          ) : (
+            <>
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-gray-900">
                   {activeTab === 'admin'
-                    ? 'All Administrators'
+                    ? 'Admin Management'
                     : activeTab === 'department'
-                    ? 'Department Users List'
-                    : 'Office Users List'}
-                </h2>
-                {activeTab === 'admin' && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => setShowAdminForm(true)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <RiAddLine />
-                    <span>Add Admin</span>
-                  </motion.button>
-                )}
-                {activeTab === 'department' && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => setShowDeptUserForm(true)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <RiAddLine />
-                    <span>Add User</span>
-                  </motion.button>
-                )}
-                {activeTab === 'office' && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    onClick={() => setShowOfficeUserForm(true)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    <RiAddLine />
-                    <span>Add Office User</span>
-                  </motion.button>
-                )}
+                    ? 'Department Users'
+                    : 'Office Users'}
+                </h1>
+                <p className="mt-1 text-gray-500">
+                  Manage your {activeTab === 'admin'
+                    ? 'administrators'
+                    : activeTab === 'department'
+                    ? 'department users'
+                    : 'office users'} here
+                </p>
               </div>
 
-              {/* Enhanced Tables */}
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead>
-                    <tr>
-                      {activeTab === 'admin' ? (
-                        <>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </>
-                      ) : activeTab === 'department' ? (
-                        <>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Dept ID</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Academic Year</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Degree Level</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Duration</th> {/* Add this */}
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">HOD</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </>
-                      ) : (
-                        <>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Office ID</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                        </>
-                      )}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activeTab === 'admin'
-                      ? admins
-                          .filter(admin => 
-                            Object.values(admin).some(val => 
-                              String(val).toLowerCase().includes(searchQuery.toLowerCase())
-                            )
-                          )
-                          .map((admin) =>
-                            editId === admin.id ? (
-                              <tr key={admin.id} className="bg-gray-50">
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="username"
-                                    value={editForm.username}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="email"
-                                    value={editForm.email}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="name"
-                                    value={editForm.name}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="mobile"
-                                    value={editForm.mobile}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="password"
-                                    value={editForm.password}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                    placeholder="New Password"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <input
-                                    type="text"
-                                    name="role"
-                                    value={editForm.role}
-                                    onChange={handleEditChange}
-                                    className="border px-2 py-1 rounded"
-                                    placeholder="Role"
-                                  />
-                                </td>
-                                <td className="px-4 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => handleUpdateAdmin(admin.id)}
-                                      className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                    >
-                                      Save
-                                    </button>
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ) : (
-                              <tr key={admin.id}>
-                                <td className="px-4 py-2">{admin.username}</td>
-                                <td className="px-4 py-2">{admin.email}</td>
-                                <td className="px-4 py-2">{admin.name}</td>
-                                <td className="px-4 py-2">{admin.mobile}</td>
-                                <td className="px-4 py-2 font-mono text-xs break-all">{admin.password}</td>
-                                <td className="px-4 py-2">{admin.role}</td> {/* <-- Add this line */}
-                                <td className="px-4 py-2 space-x-2">
-                                  <button
-                                    onClick={() => handleEdit(admin)}
-                                    className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteAdmin(admin.id)}
-                                    className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                  >
-                                    Delete
-                                  </button>
-                                </td>
-                              </tr>
-                            )
-                          )
-                      : activeTab === 'department'
-                          ? departmentUsers
-                              .filter(user => 
-                                Object.values(user).some(val => 
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <motion.div
+                  whileHover={{ y: -4 }}
+                  className="bg-white p-6 rounded-xl shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Users</p>
+                      <h3 className="text-2xl font-bold text-gray-900 mt-1">
+                        {activeTab === 'admin' ? admins.length : activeTab === 'department' ? departmentUsers.length : officeUsers.length}
+                      </h3>
+                    </div>
+                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                      <RiTeamLine className="text-xl text-blue-600" />
+                    </div>
+                  </div>
+                </motion.div>
+                
+                {/* Add more stat cards as needed */}
+              </div>
+
+              {/* Main Content Card */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl shadow-sm overflow-hidden"
+              >
+                <div className="p-6">
+                  {/* Content header with actions */}
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {activeTab === 'admin'
+                        ? 'All Administrators'
+                        : activeTab === 'department'
+                        ? 'Department Users List'
+                        : 'Office Users List'}
+                    </h2>
+                    {activeTab === 'admin' && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        onClick={() => setShowAdminForm(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <RiAddLine />
+                        <span>Add Admin</span>
+                      </motion.button>
+                    )}
+                    {activeTab === 'department' && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        onClick={() => setShowDeptUserForm(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <RiAddLine />
+                        <span>Add User</span>
+                      </motion.button>
+                    )}
+                    {activeTab === 'office' && (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        onClick={() => setShowOfficeUserForm(true)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        <RiAddLine />
+                        <span>Add Office User</span>
+                      </motion.button>
+                    )}
+                  </div>
+
+                  {/* Enhanced Tables */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead>
+                        <tr>
+                          {activeTab === 'admin' ? (
+                            <>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </>
+                          ) : activeTab === 'department' ? (
+                            <>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Department</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Dept ID</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Academic Year</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Degree Level</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Duration</th> {/* Add this */}
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">HOD</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Username</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Mobile</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Office ID</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Password</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeTab === 'admin'
+                          ? admins
+                              .filter(admin => 
+                                Object.values(admin).some(val => 
                                   String(val).toLowerCase().includes(searchQuery.toLowerCase())
                                 )
                               )
-                              .map((user) =>
-                                deptUserEditId === user.id ? (
-                                  <tr key={user.id} className="bg-gray-50">
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="name"
-                                        value={deptUserEditForm.name}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, name: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
+                              .map((admin) =>
+                                editId === admin.id ? (
+                                  <tr key={admin.id} className="bg-gray-50">
                                     <td className="px-4 py-2">
                                       <input
                                         type="text"
                                         name="username"
-                                        value={deptUserEditForm.username}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, username: e.target.value })}
+                                        value={editForm.username}
+                                        onChange={handleEditChange}
                                         className="border px-2 py-1 rounded"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
                                       <input
-                                        type="email"
+                                        type="text"
                                         name="email"
-                                        value={deptUserEditForm.email}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, email: e.target.value })}
+                                        value={editForm.email}
+                                        onChange={handleEditChange}
+                                        className="border px-2 py-1 rounded"
+                                      />
+                                    </td>
+                                    <td className="px-4 py-2">
+                                      <input
+                                        type="text"
+                                        name="name"
+                                        value={editForm.name}
+                                        onChange={handleEditChange}
                                         className="border px-2 py-1 rounded"
                                       />
                                     </td>
@@ -1000,60 +911,8 @@ export default function Dashboard() {
                                       <input
                                         type="text"
                                         name="mobile"
-                                        value={deptUserEditForm.mobile}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, mobile: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <select
-                                        name="department"
-                                        value={deptUserEditForm.department}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, department: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      >
-                                        <option value="">Select Department</option>
-                                        {departmentOptions.map((dept) => (
-                                          <option key={dept} value={dept}>{dept}</option>
-                                        ))}
-                                      </select>
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="dept_id"
-                                        value={deptUserEditForm.dept_id}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="academic_year"
-                                        value={deptUserEditForm.academic_year}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <select
-                                        name="degree_level"
-                                        value={deptUserEditForm.degree_level}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })}
-                                        className="border px-2 py-1 rounded"
-                                      >
-                                        <option value="">Select Degree Level</option>
-                                        <option value="UG">UG (3 Years)</option>
-                                        <option value="PG">PG (2 Years)</option>
-                                      </select>
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="duration"
-                                        value={deptUserEditForm.duration}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })}
+                                        value={editForm.mobile}
+                                        onChange={handleEditChange}
                                         className="border px-2 py-1 rounded"
                                       />
                                     </td>
@@ -1061,8 +920,8 @@ export default function Dashboard() {
                                       <input
                                         type="text"
                                         name="password"
-                                        value={deptUserEditForm.password}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, password: e.target.value })}
+                                        value={editForm.password}
+                                        onChange={handleEditChange}
                                         className="border px-2 py-1 rounded"
                                         placeholder="New Password"
                                       />
@@ -1070,22 +929,23 @@ export default function Dashboard() {
                                     <td className="px-4 py-2">
                                       <input
                                         type="text"
-                                        name="hod"
-                                        value={deptUserEditForm.hod}
-                                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })}
+                                        name="role"
+                                        value={editForm.role}
+                                        onChange={handleEditChange}
                                         className="border px-2 py-1 rounded"
+                                        placeholder="Role"
                                       />
                                     </td>
                                     <td className="px-4 py-2">
                                       <div className="flex items-center gap-2">
                                         <button
-                                          onClick={() => handleDeptUserUpdate(user.id)}
+                                          onClick={() => handleUpdateAdmin(admin.id)}
                                           className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
                                         >
                                           Save
                                         </button>
                                         <button
-                                          onClick={handleDeptUserCancelEdit}
+                                          onClick={handleCancelEdit}
                                           className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
                                         >
                                           Cancel
@@ -1094,169 +954,330 @@ export default function Dashboard() {
                                     </td>
                                   </tr>
                                 ) : (
-                                  <tr key={user.id}>
-                                    <td className="px-4 py-2">{user.name}</td>
-                                    <td className="px-4 py-2">{user.username}</td>
-                                    <td className="px-4 py-2">{user.email}</td>
-                                    <td className="px-4 py-2">{user.mobile}</td>
-                                    <td className="px-4 py-2">{user.department}</td>
-                                    <td className="px-4 py-2">{user.dept_id}</td>
-                                    <td className="px-4 py-2">{user.academic_year}</td>
-                                    <td className="px-4 py-2">
-                                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                                        ${user.degree_level === 'UG' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
-                                        {user.degree_level}
-                                      </span>
-                                    </td>
-                                    <td className="px-4 py-2">{user.duration}</td>
-                                    <td className="px-4 py-2 font-mono text-xs break-all">{user.password}</td>
-                                    <td className="px-4 py-2">{user.hod}</td>
-                                    <td className="px-4 py-2">
-                                     <div className="flex items-center gap-2">
+                                  <tr key={admin.id}>
+                                    <td className="px-4 py-2">{admin.username}</td>
+                                    <td className="px-4 py-2">{admin.email}</td>
+                                    <td className="px-4 py-2">{admin.name}</td>
+                                    <td className="px-4 py-2">{admin.mobile}</td>
+                                    <td className="px-4 py-2 font-mono text-xs break-all">{admin.password}</td>
+                                    <td className="px-4 py-2">{admin.role}</td> {/* <-- Add this line */}
+                                    <td className="px-4 py-2 space-x-2">
                                       <button
-                                        onClick={() => handleDeptUserEdit(user)}
+                                        onClick={() => handleEdit(admin)}
                                         className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
                                       >
                                         Edit
                                       </button>
                                       <button
-                                        onClick={() => handleDeptUserDelete(user.id)}
+                                        onClick={() => handleDeleteAdmin(admin.id)}
                                         className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
                                       >
                                         Delete
                                       </button>
-                                      <button
-                                        onClick={() => handleDeptUserLockToggle(user.id, !user.locked)}
-                                        className={`px-3 py-1 ${user.locked ? 'bg-gray-500' : 'bg-green-500'} text-white rounded hover:${user.locked ? 'bg-gray-600' : 'bg-green-600'}`}
-                                      >
-                                        {user.locked ? 'Unlock' : 'Lock'}
-                                      </button>
-                                    </div>
                                     </td>
                                   </tr>
                                 )
                               )
-                          : officeUsers
-                              .filter(user => 
-                                Object.values(user).some(val => 
-                                  String(val).toLowerCase().includes(searchQuery.toLowerCase())
-                                )
-                              )
-                              .map((user) =>
-                                officeUserEditId === user.id ? (
-                                  <tr key={user.id} className="bg-gray-50">
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="name"
-                                        value={officeUserEditForm.name}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="username"
-                                        value={officeUserEditForm.username}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="email"
-                                        name="email"
-                                        value={officeUserEditForm.email}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="mobile"
-                                        value={officeUserEditForm.mobile}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="office_id"
-                                        value={officeUserEditForm.office_id}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                      <input
-                                        type="text"
-                                        name="password"
-                                        value={officeUserEditForm.password}
-                                        onChange={handleOfficeUserEditChange}
-                                        className="border px-2 py-1 rounded"
-                                        placeholder="New Password"
-                                      />
-                                    </td>
-                                    <td className="px-4 py-2">
-                                    <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleUpdateOfficeUser(user.id)}
-                                        className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                      >
-                                        Save
-                                      </button>
-                                      <button
-                                        onClick={handleOfficeUserCancelEdit}
-                                        className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </div>
-                                    </td>
-                                  </tr>
-                                ) : (
-                                  <tr key={user.id}>
-                                    <td className="px-4 py-2">{user.name}</td>
-                                    <td className="px-4 py-2">{user.username}</td>
-                                    <td className="px-4 py-2">{user.email}</td>
-                                    <td className="px-4 py-2">{user.mobile}</td>
-                                    <td className="px-4 py-2">{user.office_id}</td>
-                                    <td className="px-4 py-2 font-mono text-xs break-all">{user.password}</td>
-                                    <td className="px-4 py-2">
-                                     <div className="flex items-center gap-2">
-                                      <button
-                                        onClick={() => handleOfficeUserEdit(user)}
-                                        className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-                                      >
-                                        Edit
-                                      </button>
-                                      <button
-                                        onClick={() => handleDeleteOfficeUser(user.id)}
-                                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                                      >
-                                        Delete
-                                      </button>
-                                      <button
-                                        onClick={() => handleOfficeUserLockToggle(user.id, !user.locked)}
-                                        className={`px-3 py-1 ${user.locked ? 'bg-gray-500' : 'bg-green-500'} text-white rounded hover:${user.locked ? 'bg-gray-600' : 'bg-green-600'}`}
-                                      >
-                                        {user.locked ? 'Unlock' : 'Lock'}
-                                      </button>
-                                     </div>
+                          : activeTab === 'department'
+                              ? departmentUsers
+                                  .filter(user => 
+                                    Object.values(user).some(val => 
+                                      String(val).toLowerCase().includes(searchQuery.toLowerCase())
+                                    )
+                                  )
+                                  .map((user) =>
+                                    deptUserEditId === user.id ? (
+                                      <tr key={user.id} className="bg-gray-50">
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="name"
+                                            value={deptUserEditForm.name}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, name: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="username"
+                                            value={deptUserEditForm.username}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, username: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="email"
+                                            name="email"
+                                            value={deptUserEditForm.email}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, email: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="mobile"
+                                            value={deptUserEditForm.mobile}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, mobile: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <select
+                                            name="department"
+                                            value={deptUserEditForm.department}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, department: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          >
+                                            <option value="">Select Department</option>
+                                            {departmentOptions.map((dept) => (
+                                              <option key={dept} value={dept}>{dept}</option>
+                                            ))}
+                                          </select>
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="dept_id"
+                                            value={deptUserEditForm.dept_id}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="academic_year"
+                                            value={deptUserEditForm.academic_year}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <select
+                                            name="degree_level"
+                                            value={deptUserEditForm.degree_level}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          >
+                                            <option value="">Select Degree Level</option>
+                                            <option value="UG">UG (3 Years)</option>
+                                            <option value="PG">PG (2 Years)</option>
+                                          </select>
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="duration"
+                                            value={deptUserEditForm.duration}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="password"
+                                            value={deptUserEditForm.password}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, password: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                            placeholder="New Password"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="hod"
+                                            value={deptUserEditForm.hod}
+                                            onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => handleDeptUserUpdate(user.id)}
+                                              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                            >
+                                              Save
+                                            </button>
+                                            <button
+                                              onClick={handleDeptUserCancelEdit}
+                                              className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                            >
+                                              Cancel
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      <tr key={user.id}>
+                                        <td className="px-4 py-2">{user.name}</td>
+                                        <td className="px-4 py-2">{user.username}</td>
+                                        <td className="px-4 py-2">{user.email}</td>
+                                        <td className="px-4 py-2">{user.mobile}</td>
+                                        <td className="px-4 py-2">{user.department}</td>
+                                        <td className="px-4 py-2">{user.dept_id}</td>
+                                        <td className="px-4 py-2">{user.academic_year}</td>
+                                        <td className="px-4 py-2">
+                                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                            ${user.degree_level === 'UG' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                            {user.degree_level}
+                                          </span>
+                                        </td>
+                                        <td className="px-4 py-2">{user.duration}</td>
+                                        <td className="px-4 py-2 font-mono text-xs break-all">{user.password}</td>
+                                        <td className="px-4 py-2">{user.hod}</td>
+                                        <td className="px-4 py-2">
+                                       <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => handleDeptUserEdit(user)}
+                                          className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeptUserDelete(user.id)}
+                                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                        >
+                                          Delete
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeptUserLockToggle(user.id, !user.locked)}
+                                          className={`px-3 py-1 ${user.locked ? 'bg-gray-500' : 'bg-green-500'} text-white rounded hover:${user.locked ? 'bg-gray-600' : 'bg-green-600'}`}
+                                        >
+                                          {user.locked ? 'Unlock' : 'Lock'}
+                                        </button>
+                                      </div>
+                                        </td>
+                                      </tr>
+                                    )
+                                  )
+                              : officeUsers
+                                  .filter(user => 
+                                    Object.values(user).some(val => 
+                                      String(val).toLowerCase().includes(searchQuery.toLowerCase())
+                                    )
+                                  )
+                                  .map((user) =>
+                                    officeUserEditId === user.id ? (
+                                      <tr key={user.id} className="bg-gray-50">
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="name"
+                                            value={officeUserEditForm.name}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="username"
+                                            value={officeUserEditForm.username}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="email"
+                                            name="email"
+                                            value={officeUserEditForm.email}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="mobile"
+                                            value={officeUserEditForm.mobile}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="office_id"
+                                            value={officeUserEditForm.office_id}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                          <input
+                                            type="text"
+                                            name="password"
+                                            value={officeUserEditForm.password}
+                                            onChange={handleOfficeUserEditChange}
+                                            className="border px-2 py-1 rounded"
+                                            placeholder="New Password"
+                                          />
+                                        </td>
+                                        <td className="px-4 py-2">
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => handleUpdateOfficeUser(user.id)}
+                                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                          >
+                                            Save
+                                          </button>
+                                          <button
+                                            onClick={handleOfficeUserCancelEdit}
+                                            className="px-3 py-1 bg-gray-400 text-white rounded hover:bg-gray-500"
+                                          >
+                                            Cancel
+                                          </button>
+                                        </div>
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      <tr key={user.id}>
+                                        <td className="px-4 py-2">{user.name}</td>
+                                        <td className="px-4 py-2">{user.username}</td>
+                                        <td className="px-4 py-2">{user.email}</td>
+                                        <td className="px-4 py-2">{user.mobile}</td>
+                                        <td className="px-4 py-2">{user.office_id}</td>
+                                        <td className="px-4 py-2 font-mono text-xs break-all">{user.password}</td>
+                                        <td className="px-4 py-2">
+                                         <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={() => handleOfficeUserEdit(user)}
+                                            className="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                                          >
+                                            Edit
+                                          </button>
+                                          <button
+                                            onClick={() => handleDeleteOfficeUser(user.id)}
+                                            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                                          >
+                                            Delete
+                                          </button>
+                                          <button
+                                            onClick={() => handleOfficeUserLockToggle(user.id, !user.locked)}
+                                            className={`px-3 py-1 ${user.locked ? 'bg-gray-500' : 'bg-green-500'} text-white rounded hover:${user.locked ? 'bg-gray-600' : 'bg-green-600'}`}
+                                          >
+                                            {user.locked ? 'Unlock' : 'Lock'}
+                                          </button>
+                                         </div>
 
-                                     
-                                    </td>
-                                  </tr>
-                                )
-                              )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
+                                         
+                                        </td>
+                                      </tr>
+                                    )
+                                  )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
         </div>
       </div>
 

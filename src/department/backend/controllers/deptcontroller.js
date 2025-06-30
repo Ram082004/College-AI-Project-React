@@ -680,3 +680,73 @@ exports.getExaminationYearStatuses = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
   }
 };
+
+// In deptcontroller.js
+exports.deleteEnrollmentByYear = async (req, res) => {
+  const { dept_id, year, subcategories } = req.body;
+  if (!dept_id || !year || !subcategories) {
+    return res.status(400).json({ success: false, message: 'Missing parameters' });
+  }
+  await pool.query(
+    `DELETE FROM student_enrollment WHERE dept_id = ? AND year = ? AND subcategory_id IN (?)`,
+    [dept_id, year, subcategories]
+  );
+  res.json({ success: true });
+};
+
+// Update student enrollment data (update counts for existing records)
+exports.updateEnrollmentData = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const { records } = req.body;
+
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ success: false, message: 'Invalid data format' });
+    }
+
+    for (const record of records) {
+      const {
+        academic_year,
+        dept_id,
+        category_id,
+        subcategory_id,
+        gender_id,
+        count,
+        year
+      } = record;
+
+      // Only update if record exists
+      const [existing] = await connection.query(
+        `SELECT id FROM student_enrollment 
+         WHERE academic_year = ? AND dept_id = ? AND category_id = ? AND subcategory_id = ? AND gender_id = ? AND year = ?`,
+        [academic_year, dept_id, category_id, subcategory_id, gender_id, year]
+      );
+
+      if (existing.length > 0) {
+        // Update existing record
+        await connection.query(
+          `UPDATE student_enrollment SET count = ? 
+           WHERE id = ?`,
+          [count, existing[0].id]
+        );
+      } else if (count > 0) {
+        // Insert new record if not exists and count > 0
+        await connection.query(
+          `INSERT INTO student_enrollment 
+           (academic_year, dept_id, category_id, subcategory_id, gender_id, count, year)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [academic_year, dept_id, category_id, subcategory_id, gender_id, count, year]
+        );
+      }
+    }
+
+    await connection.commit();
+    res.json({ success: true, message: 'Enrollment data updated successfully' });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ success: false, message: 'Failed to update enrollment data', error: error.message });
+  } finally {
+    connection.release();
+  }
+};

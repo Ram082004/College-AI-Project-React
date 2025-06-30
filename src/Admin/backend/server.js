@@ -53,6 +53,7 @@ const officeRoutes = require('../../office/backend/route/officeRoute');
 const departmentUserRoutes = require('./adminbackend/route/departmentUserRoutes');
 const officeUserRoutes = require('./adminbackend/route/officeuserroutes');
 const principleRoutes = require('../../principle/backend/route/principleroute'); // Ensure this path is correct
+const submittedUserRoutes = require('./adminbackend/route/submittedUserRoutes');
 
 // Use routes with proper path prefix
 app.use('/api', authRoutes);
@@ -62,6 +63,7 @@ app.use('/api/office-user', officeUserRoutes);
 app.use('/api', departmentRoutes);
 app.use('/api', officeRoutes);
 app.use('/api/principle', principleRoutes); // Ensure this line is present
+app.use('/api/submitted-data', submittedUserRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
