@@ -80,6 +80,8 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
   const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
   const [hodName, setHodName] = useState('');
+  const [isUpdateMode, setIsUpdateMode] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -329,6 +331,124 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   }, [userData]);
 
+  const fetchExaminationDataForYear = async (yearSlot, resultType) => {
+    if (!userData?.dept_id) return;
+    setUpdating(true);
+    try {
+      const res = await axios.get(API.student_examination(userData.dept_id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      if (res.data.success && Array.isArray(res.data.details)) {
+        // Filter for the selected year slot and result type
+        const filtered = res.data.details.filter(
+          (row) => row.year === yearSlot && row.result_type === resultType
+        );
+        // Build examinationData object
+        const newData = {};
+        subcategories.forEach(sub => {
+          newData[sub] = {};
+          categories.forEach(cat => {
+            newData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+          });
+        });
+        filtered.forEach(row => {
+          if (
+            newData[row.subcategory] &&
+            newData[row.subcategory][row.category]
+          ) {
+            newData[row.subcategory][row.category] = {
+              Male: Number(row.male_count) || 0,
+              Female: Number(row.female_count) || 0,
+              Transgender: Number(row.transgender_count) || 0
+            };
+          }
+        });
+        setExaminationData(newData);
+      }
+    } catch {
+      setGlobalMessage({ type: 'error', text: 'Failed to fetch examination data for update.' });
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleUpdateExamination = async () => {
+    if (!isUpdateMode) {
+      // First click: fetch and fill data
+      await fetchExaminationDataForYear(yearSlots[currentYearSlot], resultType);
+      setIsUpdateMode(true);
+      setGlobalMessage({ type: 'success', text: 'Examination data loaded. You can now update and save.' });
+      setTimeout(() => setGlobalMessage(null), 3000);
+      return;
+    }
+
+    // Second click: update data
+    setUpdating(true);
+    try {
+      const selectedAcademicYear = academicYears[0];
+      if (!selectedAcademicYear) {
+        setGlobalMessage({ type: 'error', text: 'Academic year not found' });
+        setUpdating(false);
+        return;
+      }
+      const updateRecords = [];
+      Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
+        Object.entries(categoryMaster).forEach(([catId, catName]) => {
+          Object.entries(genderMaster).forEach(([genderId, genderName]) => {
+            const count = examinationData[subcatName][catName][genderName];
+            updateRecords.push({
+              academic_year: selectedAcademicYear,
+              dept_id: userData?.dept_id,
+              category_id: parseInt(catId),
+              subcategory_id: parseInt(subcatId),
+              gender_id: parseInt(genderId),
+              count: parseInt(count),
+              year: yearSlots[currentYearSlot],
+              result_type: resultType
+            });
+          });
+        });
+      });
+      const response = await axios.put(
+        'http://localhost:5000/api/student-examination/update',
+        { records: updateRecords },
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      if (response.data.success) {
+        setGlobalMessage({ type: 'success', text: 'Examination data updated successfully' });
+        fetchExaminationDetails();
+        setIsUpdateMode(false);
+      } else {
+        setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update examination data' });
+      }
+    } catch (error) {
+      setGlobalMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update examination data' });
+    } finally {
+      setUpdating(false);
+      setTimeout(() => setGlobalMessage(null), 3000);
+    }
+  };
+
+  useEffect(() => {
+    if (isUpdateMode) {
+      // Reset form to empty and exit update mode when year or result type changes
+      const emptyData = {};
+      subcategories.forEach(sub => {
+        emptyData[sub] = {};
+        categories.forEach(cat => {
+          emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+        });
+      });
+      setExaminationData(emptyData);
+      setIsUpdateMode(false);
+    }
+  }, [currentYearSlot, resultType]);
+
   return (
     <>
       <div className="space-y-8">
@@ -552,28 +672,53 @@ export default function StudentExamination({ userData, yearSlots }) {
             ))}
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setShowConfirm(true)}
-            className={`w-full max-w-md mx-auto py-4 px-6 rounded-xl font-semibold text-white text-lg
-              shadow-lg shadow-blue-500/20 
-              ${submitting 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-              }
-              transform transition-all duration-200 hover:-translate-y-0.5`}
-          >
-            {submitting ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
-                <span>Submitting...</span>
-              </div>
-            ) : (
-              'Submit Examination Data'
+          {/* Button Group for Submit and Update */}
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mt-8">
+            <button
+              type="button"
+              disabled={submitting || isDeclarationLocked}
+              onClick={() => setShowConfirm(true)}
+              className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                shadow-lg shadow-blue-500/20 
+                ${submitting || isDeclarationLocked
+                  ? 'bg-gray-400 cursor-not-allowed' 
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                }
+                transform transition-all duration-200 hover:-translate-y-0.5`}
+            >
+              {submitting ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
+                  <span>Submitting...</span>
+                </div>
+              ) : (
+                'Submit Examination Data'
+              )}
+            </button>
+
+            {!isDeclarationLocked && (
+              <button
+                type="button"
+                disabled={updating}
+                onClick={handleUpdateExamination}
+                className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                  shadow-lg shadow-blue-500/20
+                  ${updating
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : isUpdateMode
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                  }
+                  transform transition-all duration-200 hover:-translate-y-0.5`}
+              >
+                {updating
+                  ? 'Updating...'
+                  : isUpdateMode
+                    ? 'Save Changes'
+                    : 'Edit Examination Data'}
+              </button>
             )}
-          </button>
+          </div>
         </form>
       </div>
 
@@ -754,7 +899,7 @@ export default function StudentExamination({ userData, yearSlots }) {
             ) : (
               <div className="flex items-center justify-end gap-4">
                 <button
-                  className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+                  className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
                   onClick={() => setShowDeclaration(false)}
                   disabled={finalSubmitting}
                 >

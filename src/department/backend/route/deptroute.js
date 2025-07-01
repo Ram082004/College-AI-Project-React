@@ -17,7 +17,8 @@ const {
   getHodName,
   getDeclarationLockStatus,
   lockDeclaration,
-  updateEnrollmentData // <-- Add this import
+  updateEnrollmentData,
+  updateExaminationData
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- existing
 
@@ -82,5 +83,6 @@ router.post('/student-examination/lock-declaration', lockDeclaration);
 
 // Add this route for updating enrollment data
 router.put('/student-enrollment/update', updateEnrollmentData);
+router.put('/student-examination/update', updateExaminationData);
 
 module.exports = router;

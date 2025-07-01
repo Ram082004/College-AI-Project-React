@@ -750,3 +750,61 @@ exports.updateEnrollmentData = async (req, res) => {
     connection.release();
   }
 };
+
+// Update examination data
+exports.updateExaminationData = async (req, res) => {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const { records } = req.body;
+
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ success: false, message: 'Invalid data format' });
+    }
+
+    for (const record of records) {
+      const {
+        academic_year,
+        dept_id,
+        category_id,
+        subcategory_id,
+        gender_id,
+        count,
+        year,
+        result_type
+      } = record;
+
+      // Only update if record exists
+      const [existing] = await connection.query(
+        `SELECT id FROM student_examination 
+         WHERE academic_year = ? AND dept_id = ? AND category_id = ? AND subcategory_id = ? AND gender_id = ? AND year = ? AND result_type = ?`,
+        [academic_year, dept_id, category_id, subcategory_id, gender_id, year, result_type]
+      );
+
+      if (existing.length > 0) {
+        // Update existing record
+        await connection.query(
+          `UPDATE student_examination SET count = ? 
+           WHERE id = ?`,
+          [count, existing[0].id]
+        );
+      } else if (count > 0) {
+        // Insert new record if not exists and count > 0
+        await connection.query(
+          `INSERT INTO student_examination 
+           (academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, result_type)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, result_type]
+        );
+      }
+    }
+
+    await connection.commit();
+    res.json({ success: true, message: 'Examination data updated successfully' });
+  } catch (error) {
+    await connection.rollback();
+    res.status(500).json({ success: false, message: 'Failed to update examination data', error: error.message });
+  } finally {
+    connection.release();
+  }
+};

@@ -298,6 +298,17 @@ export default function StudentEnrollment({ userData }) {
       );
       if (response.data.success) {
         setGlobalMessage({ type: 'success', text: 'Enrollment data added successfully' });
+        // Reset form fields to zero after submit
+        setEnrollmentData(() => {
+          const data = {};
+          subcategories.forEach(sub => {
+            data[sub] = {};
+            categories.forEach(cat => {
+              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+            });
+          });
+          return data;
+        });
         fetchStudentDetails();
         // Optionally clear form or advance year
       }
@@ -387,7 +398,7 @@ export default function StudentEnrollment({ userData }) {
       try {
         await fetchEnrollmentDataForYear(yearSlots[currentYearSlot]);
         setIsUpdateMode(true);
-        setGlobalMessage({ type: 'info', text: 'Enrollment data loaded. You can now update and save.' });
+        setGlobalMessage({ type: 'success', text: 'Enrollment data loaded. You can now update and save.' });
       } catch {
         setGlobalMessage({ type: 'error', text: 'Failed to fetch enrollment data for update.' });
       } finally {
@@ -447,6 +458,23 @@ export default function StudentEnrollment({ userData }) {
       setTimeout(() => setGlobalMessage(null), 3000);
     }
   };
+
+  useEffect(() => {
+    if (isUpdateMode) {
+      // Reset form to empty and exit update mode when year changes
+      const emptyData = {};
+      subcategories.forEach(sub => {
+        emptyData[sub] = {};
+        categories.forEach(cat => {
+          emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+        });
+      });
+      setEnrollmentData(emptyData);
+      setIsUpdateMode(false);
+    }
+    // Optionally, fetch student details for the new year slot
+    // fetchStudentDetails();
+  }, [currentYearSlot]);
 
   return (
     <>
@@ -660,53 +688,54 @@ export default function StudentEnrollment({ userData }) {
             ))}
           </div>
 
-          {/* Submit Button */}
-          <button
-            type="button"
-            disabled={submitting || loadingYearData}
-            onClick={() => setShowConfirm(true)}
-            className={`w-full max-w-md mx-auto py-4 px-6 rounded-xl font-semibold text-white text-lg
-              shadow-lg shadow-blue-500/20 
-              ${submitting || loadingYearData
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-              }
-              transform transition-all duration-200 hover:-translate-y-0.5`}
-          >
-            {submitting ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
-                <span>Submitting...</span>
-              </div>
-            ) : (
-              'Submit Enrollment Data'
-            )}
-          </button>
-
-          {/* Update Enrollment Button */}
-          {!isDeclarationLocked && (
+          {/* Button Group for Submit and Update */}
+          <div className="flex flex-col md:flex-row gap-4 justify-center items-center mt-8">
             <button
               type="button"
-              disabled={updating || loadingYearData}
-              onClick={handleUpdateEnrollment}
-              className={`w-full max-w-md mx-auto mt-4 py-4 px-6 rounded-xl font-semibold text-white text-lg
-                shadow-lg shadow-blue-500/20
-                ${updating || loadingYearData
+              disabled={submitting || loadingYearData || isDeclarationLocked}
+              onClick={() => setShowConfirm(true)}
+              className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                shadow-lg shadow-blue-500/20 
+                ${submitting || loadingYearData || isDeclarationLocked
                   ? 'bg-gray-400 cursor-not-allowed'
-                  : isUpdateMode
-                    ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
-                    : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
                 }
                 transform transition-all duration-200 hover:-translate-y-0.5`}
             >
-              {updating ? (
+              {submitting ? (
                 <div className="flex items-center justify-center space-x-2">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
-                  <span>Updating...</span>
+                  <span>Submitting...</span>
                 </div>
-              ) : isUpdateMode ? 'Save Changes' : 'Edit Enrollment Data'}
+              ) : (
+                'Submit Enrollment Data'
+              )}
             </button>
-          )}
+
+            {!isDeclarationLocked && (
+              <button
+                type="button"
+                disabled={updating || loadingYearData}
+                onClick={handleUpdateEnrollment}
+                className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                  shadow-lg shadow-blue-500/20
+                  ${updating || loadingYearData
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : isUpdateMode
+                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                      : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                  }
+                  transform transition-all duration-200 hover:-translate-y-0.5`}
+              >
+                {updating ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
+                    <span>Updating...</span>
+                  </div>
+                ) : isUpdateMode ? 'Save Changes' : 'Edit Enrollment Data'}
+              </button>
+            )}
+          </div>
         </form>
 
         {/* Student Details Table */}

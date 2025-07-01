@@ -7,7 +7,7 @@ const API = {
   SUBMITTED_DATA_LOCK: (id) => `${API_BASE}/submitted-data/${id}/lock`,
 };
 
-export default function SubmittedData() {
+function SubmittedData() {
   const [submittedData, setSubmittedData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
@@ -55,54 +55,54 @@ export default function SubmittedData() {
   }, {});
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      <h1 className="text-2xl font-bold mb-6">Submitted Data</h1>
-
+    <div className="p-0 md:p-2">
+      <div className="flex items-center justify-between mb-8">
+        <h2 className="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
+          <span className="inline-block w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-2xl shadow">S</span>
+          Submitted Data
+        </h2>
+      </div>
       {/* Category summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {["Student Enrollment", "Student Examination"].map((cat) => (
-          <div key={cat} className="bg-white rounded-xl shadow p-6 flex flex-col items-center">
-            <div className="text-lg font-semibold">{cat}</div>
-            <div className="text-3xl font-bold text-blue-700 mt-2">{summary[cat] || 0}</div>
+        {['Student Enrollment', 'Student Examination'].map((cat) => (
+          <div key={cat} className="bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl shadow-lg p-8 flex flex-col items-center border border-blue-100">
+            <div className="text-lg font-bold text-blue-800">{cat}</div>
+            <div className="text-4xl font-extrabold text-blue-700 mt-2 drop-shadow">{summary[cat] || 0}</div>
           </div>
         ))}
       </div>
-
-      {/* Data Table */}
-      <div className="bg-white rounded-xl shadow p-4 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead>
+      <div className="overflow-x-auto animate-fade-in">
+        <table className="min-w-full bg-white border-0 rounded-2xl shadow-xl overflow-hidden">
+          <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
             <tr>
-              <th className="px-4 py-2">Department</th>
-              <th className="px-4 py-2">Name</th>
-              <th className="px-4 py-2">Year</th>
-              <th className="px-4 py-2">Type</th>
-              <th className="px-4 py-2">HOD</th>
-              <th className="px-4 py-2">Submitted At</th>
-              <th className="px-4 py-2">Locked</th>
-              <th className="px-4 py-2">Action</th>
+              <th className="p-4 text-left font-bold tracking-wide">Department</th>
+              <th className="p-4 text-left font-bold tracking-wide">Name</th>
+              <th className="p-4 text-left font-bold tracking-wide">Year</th>
+              <th className="p-4 text-left font-bold tracking-wide">Type</th>
+              <th className="p-4 text-left font-bold tracking-wide">HOD</th>
+              <th className="p-4 text-left font-bold tracking-wide">Submitted At</th>
+              <th className="p-4 text-left font-bold tracking-wide">Locked</th>
+              <th className="p-4 text-left font-bold tracking-wide">Action</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-blue-50">
             {submittedData.map((row) => (
-              <tr key={row.id}>
-                <td className="px-4 py-2">{row.department}</td>
-                <td className="px-4 py-2">{row.name}</td>
-                <td className="px-4 py-2">{row.year}</td>
-                <td className="px-4 py-2">{row.type}</td>
-                <td className="px-4 py-2">{row.hod}</td>
-                <td className="px-4 py-2">{new Date(row.submitted_at).toLocaleString()}</td>
-                <td className="px-4 py-2">
-                  <span className={`px-2 py-1 rounded text-xs font-semibold ${row.locked ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                    {row.locked ? "Locked" : "Unlocked"}
-                  </span>
+              <tr key={row.id} className="hover:bg-blue-50 transition-all">
+                <td className="p-4 font-semibold text-blue-900">{row.department}</td>
+                <td className="p-4">{row.name}</td>
+                <td className="p-4">{row.year}</td>
+                <td className="p-4"><span className={`px-3 py-1 rounded-2xl text-xs font-bold ${row.type === 'Student Examination' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'bg-blue-100 text-blue-700'}`}>{row.type}</span></td>
+                <td className="p-4">{row.hod}</td>
+                <td className="p-4">{new Date(row.submitted_at).toLocaleString()}</td>
+                <td className="p-4">
+                  <span className={`px-3 py-1 rounded-2xl text-xs font-bold ${row.locked ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>{row.locked ? 'Locked' : 'Unlocked'}</span>
                 </td>
-                <td className="px-4 py-2">
+                <td className="p-4">
                   <button
                     onClick={() => handleLockToggle(row.id, !row.locked)}
-                    className={`px-3 py-1 rounded ${row.locked ? "bg-green-500 hover:bg-green-600" : "bg-gray-500 hover:bg-gray-600"} text-white`}
+                    className={`px-4 py-2 rounded-2xl font-bold shadow transition-all ${row.locked ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'}`}
                   >
-                    {row.locked ? "Unlock" : "Lock"}
+                    {row.locked ? 'Unlock' : 'Lock'}
                   </button>
                 </td>
               </tr>
@@ -117,10 +117,9 @@ export default function SubmittedData() {
           </tbody>
         </table>
       </div>
-
       {/* Toast Message */}
       {globalMessage && (
-        <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-xl shadow-lg ${globalMessage.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+        <div className={`fixed bottom-4 right-4 px-6 py-3 rounded-2xl shadow-xl font-bold text-lg ${globalMessage.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
           {globalMessage.text}
           <button onClick={() => setGlobalMessage(null)} className="ml-3 text-white/80 hover:text-white">×</button>
         </div>
@@ -128,3 +127,5 @@ export default function SubmittedData() {
     </div>
   );
 }
+
+export default SubmittedData;
