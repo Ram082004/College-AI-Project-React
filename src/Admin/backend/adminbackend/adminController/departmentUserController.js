@@ -154,3 +154,84 @@ exports.getDistinctAcademicYears = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch academic years' });
   }
 };
+
+exports.getStudentEnrollmentSummary = async (req, res) => {
+  try {
+    const { department, category, subcategory, year } = req.query; // <-- Add year
+    let query = `
+      SELECT 
+        c.name as category,
+        sc.name as subcategory,
+        se.year,
+        SUM(CASE WHEN g.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN g.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN g.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_enrollment se
+      JOIN department_users du ON se.dept_id = du.dept_id
+      JOIN category_master c ON se.category_id = c.id
+      JOIN category_master sc ON se.subcategory_id = sc.id
+      JOIN gender_master g ON se.gender_id = g.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (department) {
+      query += ' AND du.department = ?';
+      params.push(department);
+    }
+    if (category) {
+      query += ' AND c.name = ?';
+      params.push(category);
+    }
+    if (subcategory) {
+      query += ' AND sc.name = ?';
+      params.push(subcategory);
+    }
+    if (year) {
+      query += ' AND se.year = ?';
+      params.push(year);
+    }
+    query += ' GROUP BY c.name, sc.name, se.year ORDER BY se.year, c.name, sc.name';
+    const [rows] = await pool.query(query, params);
+    res.json({ success: true, summary: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch summary' });
+  }
+};
+
+exports.getStudentExaminationSummary = async (req, res) => {
+  try {
+    const { department, category, subcategory } = req.query;
+    let query = `
+      SELECT 
+        c.name as category,
+        sc.name as subcategory,
+        SUM(CASE WHEN g.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN g.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN g.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_examination se
+      JOIN department_users du ON se.dept_id = du.dept_id
+      JOIN category_master c ON se.category_id = c.id
+      JOIN category_master sc ON se.subcategory_id = sc.id
+      JOIN gender_master g ON se.gender_id = g.id
+      WHERE 1=1
+    `;
+    const params = [];
+    if (department) {
+      query += ' AND du.department = ?';
+      params.push(department);
+    }
+    if (category) {
+      query += ' AND c.name = ?';
+      params.push(category);
+    }
+    if (subcategory) {
+      query += ' AND sc.name = ?';
+      params.push(subcategory);
+    }
+    query += ' GROUP BY c.name, sc.name ORDER BY c.name, sc.name';
+    const [rows] = await pool.query(query, params);
+    res.json({ success: true, summary: rows });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch examination summary' });
+  }
+};

@@ -18,7 +18,8 @@ const {
   getDeclarationLockStatus,
   lockDeclaration,
   updateEnrollmentData,
-  updateExaminationData
+  updateExaminationData,
+  getDegreeLevelAndDuration
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db'); // <-- existing
 
@@ -84,5 +85,8 @@ router.post('/student-examination/lock-declaration', lockDeclaration);
 // Add this route for updating enrollment data
 router.put('/student-enrollment/update', updateEnrollmentData);
 router.put('/student-examination/update', updateExaminationData);
+
+// Add this route to get degree level and duration
+router.get('/department-user/degree-level/:deptId', getDegreeLevelAndDuration);
 
 module.exports = router;

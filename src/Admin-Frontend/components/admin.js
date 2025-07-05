@@ -202,6 +202,7 @@ export default function Admin() {
               <th className="p-4 text-left font-bold tracking-wide">Name</th>
               <th className="p-4 text-left font-bold tracking-wide">Mobile</th>
               <th className="p-4 text-left font-bold tracking-wide">Role</th>
+              <th className="p-4 text-left font-bold tracking-wide">Password</th> {/* Add this */}
               <th className="p-4 text-left font-bold tracking-wide">Actions</th>
             </tr>
           </thead>
@@ -217,6 +218,7 @@ export default function Admin() {
                     <option value="Admin">Admin</option>
                     <option value="SuperAdmin">SuperAdmin</option>
                   </select></td>
+                  <td className="p-3"><input name="password" value={editForm.password} onChange={handleEditChange} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleUpdateAdmin(admin.id)}>Save</button>
                     <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleCancelEdit}>Cancel</button>
@@ -229,6 +231,7 @@ export default function Admin() {
                   <td className="p-4">{admin.name}</td>
                   <td className="p-4">{admin.mobile}</td>
                   <td className="p-4"><span className={`px-3 py-1 rounded-2xl text-xs font-bold ${admin.role === 'SuperAdmin' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'bg-blue-100 text-blue-700'}`}>{admin.role}</span></td>
+                  <td className="p-4">{admin.password}</td> {/* Show password */}
                   <td className="p-4 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleEdit(admin)}>Edit</button>
                     <button className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeleteAdmin(admin.id)}>Delete</button>

@@ -212,6 +212,7 @@ export default function Office() {
               <th className="p-4 text-left font-bold tracking-wide">Email</th>
               <th className="p-4 text-left font-bold tracking-wide">Mobile</th>
               <th className="p-4 text-left font-bold tracking-wide">Office ID</th>
+              <th className="p-4 text-left font-bold tracking-wide">Password</th> {/* Add this */}
               <th className="p-4 text-left font-bold tracking-wide">Locked</th>
               <th className="p-4 text-left font-bold tracking-wide">Actions</th>
             </tr>
@@ -225,6 +226,7 @@ export default function Office() {
                   <td className="p-3"><input name="email" value={officeUserEditForm.email} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, email: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3"><input name="mobile" value={officeUserEditForm.mobile} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, mobile: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3"><input name="office_id" value={officeUserEditForm.office_id} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, office_id: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                  <td className="p-3"><input name="password" value={officeUserEditForm.password} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, password: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3">{user.locked ? 'Yes' : 'No'}</td>
                   <td className="p-3 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleUpdateOfficeUser(user.id)}>Save</button>
@@ -238,6 +240,7 @@ export default function Office() {
                   <td className="p-4">{user.email}</td>
                   <td className="p-4">{user.mobile}</td>
                   <td className="p-4">{user.office_id}</td>
+                  <td className="p-4">{user.password}</td> {/* Show password */}
                   <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
                   <td className="p-4 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleOfficeUserEdit(user)}>Edit</button>

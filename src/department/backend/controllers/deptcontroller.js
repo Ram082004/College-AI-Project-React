@@ -808,3 +808,23 @@ exports.updateExaminationData = async (req, res) => {
     connection.release();
   }
 };
+
+// Get degree_level and duration for a department user
+exports.getDegreeLevelAndDuration = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    if (!deptId) {
+      return res.status(400).json({ success: false, message: 'Department ID is required' });
+    }
+    const [rows] = await pool.query(
+      'SELECT degree_level, duration FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1',
+      [deptId]
+    );
+    if (rows.length === 0) {
+      return res.json({ success: false, message: 'No department user found' });
+    }
+    res.json({ success: true, degree_level: rows[0].degree_level, duration: rows[0].duration });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch degree level and duration', error: error.message });
+  }
+};

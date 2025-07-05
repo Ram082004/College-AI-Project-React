@@ -13,6 +13,7 @@ const API = {
   student_enrollment: (deptId) => `${API_BASE}/student-enrollment/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
   hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
+  degree_level: (deptId) => `${API_BASE}/department-user/degree-level/${deptId}`,
 };
 
 const categoryMaster = {
@@ -52,7 +53,9 @@ const subcategoryInfo = {
 };
 
 export default function StudentEnrollment({ userData }) {
-  const yearSlots = ['I Year', 'II Year', 'III Year'];
+  const [degreeLevel, setDegreeLevel] = useState('');
+  const [duration, setDuration] = useState('');
+  const [yearSlots, setYearSlots] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [currentYearSlot, setCurrentYearSlot] = useState(0);
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
@@ -83,6 +86,39 @@ export default function StudentEnrollment({ userData }) {
   const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
   const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
 
+
+  useEffect(() => {
+    const fetchDegreeLevelAndDuration = async () => {
+      if (!userData?.dept_id) return;
+      try {
+        const res = await axios.get(API.degree_level(userData.dept_id), {
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        if (res.data.success) {
+          setDegreeLevel(res.data.degree_level);
+          setDuration(res.data.duration);
+
+          // Set yearSlots based on duration (always ['I Year', 'II Year', ...])
+          const roman = ['I', 'II', 'III' ];
+          const dur = parseInt(res.data.duration, 10);
+          if (dur > 0 && dur <= roman.length) {
+            setYearSlots(Array.from({ length: dur }, (_, i) => `${roman[i]} Year`));
+          } else {
+            setYearSlots(['I Year', 'II Year', 'III Year']);
+          }
+        } else {
+          setDegreeLevel('');
+          setDuration('');
+          setYearSlots(['I Year', 'II Year', 'III Year']);
+        }
+      } catch {
+        setDegreeLevel('');
+        setDuration('');
+        setYearSlots(['I Year', 'II Year', 'III Year']);
+      }
+    };
+    fetchDegreeLevelAndDuration();
+  }, [userData]);
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -233,13 +269,17 @@ export default function StudentEnrollment({ userData }) {
   };
 
   const checkDeclarationLockStatus = async () => {
+    if (!userData?.dept_id || !yearSlots.length) {
+      setIsDeclarationLocked(false);
+      return;
+    }
     try {
       const res = await axios.get(
         `http://localhost:5000/api/student-enrollment/declaration-lock-status`,
         {
           params: {
             deptId: userData?.dept_id,
-            year: yearSlots.join(', '), // or the relevant years
+            year: yearSlots.join(', '),
             type: 'Student Enrollment'
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
@@ -252,10 +292,11 @@ export default function StudentEnrollment({ userData }) {
   };
 
   useEffect(() => {
-    if (userData?.dept_id) {
+    if (userData?.dept_id && yearSlots.length) {
       checkDeclarationLockStatus();
     }
-  }, [userData]);
+    // eslint-disable-next-line
+  }, [userData, yearSlots]);
 
   const handleEnrollmentSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -537,6 +578,14 @@ export default function StudentEnrollment({ userData }) {
                 </div>
               )}
             </div>
+            <div className="flex-1 min-w-[180px] max-w-xs">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Degree Level
+              </label>
+              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700">
+                {degreeLevel || 'N/A'}
+              </div>
+            </div>
             <div className="flex-1 flex gap-2 justify-end items-end">
               <button
                 type="button"
@@ -752,6 +801,7 @@ export default function StudentEnrollment({ userData }) {
                 <tr>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Academic Year</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Year</th>
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Degree Level</th> {/* Add this */}
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Category</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Subcategory</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Male</th>
@@ -765,6 +815,7 @@ export default function StudentEnrollment({ userData }) {
                     <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
                       <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
                       <td className="px-6 py-4">{detail.year}</td>
+                      <td className="px-6 py-4">{detail.degree_level || degreeLevel}</td> {/* Show degree_level */}
                       <td className="px-6 py-4">{detail.category}</td>
                       <td className="px-6 py-4">{detail.subcategory}</td>
                       <td className="px-6 py-4">
@@ -799,6 +850,14 @@ export default function StudentEnrollment({ userData }) {
             </table>
           </div>
         </div>
+
+        {/* New PG Enrollment Banner */}
+        {degreeLevel === 'PG' && (
+          <div className="mb-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded-xl shadow">
+            Student Enrollment (PG)
+          </div>
+        )}
+
       </div>
 
       {/* Info Modals */}

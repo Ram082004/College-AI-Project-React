@@ -22,38 +22,30 @@ const departmentOptions = [
   'B.SC Chemistry',
 ];
 
+const yearSlotOptions = ['I Year', 'II Year', 'III Year'];
+
 export default function Department() {
   const [departmentUsers, setDepartmentUsers] = useState([]);
   const [deptUserEditId, setDeptUserEditId] = useState(null);
   const [deptUserEditForm, setDeptUserEditForm] = useState({
-    name: '',
-    username: '',
-    email: '',
-    mobile: '',
-    department: '',
-    dept_id: '',
-    academic_year: '',
-    degree_level: '',
-    duration: '',
-    password: '',
-    hod: '',
+    name: '', username: '', email: '', mobile: '', department: '', dept_id: '', academic_year: '', degree_level: '', duration: '', password: '', hod: '',
   });
   const [newUser, setNewUser] = useState({
-    name: '',
-    username: '',
-    email: '',
-    mobile: '',
-    department: '',
-    dept_id: '',
-    academic_year: '',
-    degree_level: '',
-    duration: '',
-    password: '',
-    hod: '',
+    name: '', username: '', email: '', mobile: '', department: '', dept_id: '', academic_year: '', degree_level: '', duration: '', password: '', hod: '',
   });
   const [deptUserLoading, setDeptUserLoading] = useState(false);
   const [showDeptUserForm, setShowDeptUserForm] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [filter, setFilter] = useState({
+    department: '',
+    type: '', // 'Student Enrollment' or 'Student Examination'
+    category: '',
+    subcategory: '',
+    yearSlot: '', // <-- Add this
+  });
+  const [enrollmentSummary, setEnrollmentSummary] = useState([]);
+  const [examinationSummary, setExaminationSummary] = useState([]);
+  const [showFilter, setShowFilter] = useState(false);
 
   // Fetch all department users
   const fetchDepartmentUsers = async () => {
@@ -196,8 +188,211 @@ export default function Department() {
     }
   }, [globalMessage]);
 
+  // Calculate totals for the selected year slot only
+  const filteredYear = filter.yearSlot;
+  const yearFilteredSummary = filteredYear
+    ? enrollmentSummary.filter(row => row.year === filteredYear)
+    : enrollmentSummary;
+
+  const yearTotalCounts = yearFilteredSummary.reduce(
+    (totals, row) => {
+      totals.male += Number(row.male_count) || 0;
+      totals.female += Number(row.female_count) || 0;
+      totals.transgender += Number(row.transgender_count) || 0;
+      return totals;
+    },
+    { male: 0, female: 0, transgender: 0 }
+  );
+
   return (
     <div className="p-0 md:p-2">
+      {/* Department Data Collapsible Container */}
+      <div className="mb-8">
+        <button
+          className="w-full flex justify-between items-center px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold shadow-lg text-xl focus:outline-none"
+          onClick={() => setShowFilter((prev) => !prev)}
+        >
+          <span>Department Data</span>
+          <span className="text-2xl">{showFilter ? '▲' : '▼'}</span>
+        </button>
+        {showFilter && (
+          <div className="bg-white rounded-b-2xl shadow-lg px-6 py-6 border-t border-blue-100">
+            <div className="flex flex-wrap gap-4 mb-6">
+              <select
+                className="p-2 border rounded"
+                value={filter.department}
+                onChange={e => setFilter(f => ({ ...f, department: e.target.value }))}
+              >
+                <option value="">All Departments</option>
+                {departmentOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.type}
+                onChange={e => setFilter(f => ({ ...f, type: e.target.value }))}
+              >
+                <option value="">All Types</option>
+                <option value="Student Enrollment">Student Enrollment</option>
+                <option value="Student Examination">Student Examination</option>
+              </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.category}
+                onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}
+              >
+                <option value="">All Categories</option>
+                <option value="General Including EWS">General Including EWS</option>
+                <option value="Scheduled Caste (SC)">Scheduled Caste (SC)</option>
+                <option value="Scheduled Tribe (ST)">Scheduled Tribe (ST)</option>
+                <option value="Other Backward Classes (OBC)">Other Backward Classes (OBC)</option>
+              </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.subcategory}
+                onChange={e => setFilter(f => ({ ...f, subcategory: e.target.value }))}
+              >
+                <option value="">All Subcategories</option>
+                <option value="PwBD">PwBD</option>
+                <option value="Muslim Minority">Muslim Minority</option>
+                <option value="Other Minority">Other Minority</option>
+              </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.yearSlot}
+                onChange={e => setFilter(f => ({ ...f, yearSlot: e.target.value }))}
+              >
+                <option value="">All Year Slots</option>
+                {yearSlotOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded"
+                onClick={async () => {
+                  try {
+                    if (filter.type === 'Student Enrollment' && filter.department) {
+                      const res = await axios.get(`${API_BASE}/department-user/student-enrollment/summary`, {
+                        params: {
+                          department: filter.department,
+                          category: filter.category,
+                          subcategory: filter.subcategory,
+                          year: filter.yearSlot, // <-- Add this
+                        },
+                        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+                      });
+                      setEnrollmentSummary(res.data.summary || []);
+                      setExaminationSummary([]);
+                    } else if (filter.type === 'Student Examination' && filter.department) {
+                      const res = await axios.get(`${API_BASE}/department-user/student-examination/summary`, {
+                        params: {
+                          department: filter.department,
+                          category: filter.category,
+                          subcategory: filter.subcategory,
+                          year: filter.yearSlot, // <-- Add this
+                        },
+                        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+                      });
+                      setExaminationSummary(res.data.summary || []);
+                      setEnrollmentSummary([]);
+                    } else {
+                      setEnrollmentSummary([]);
+                      setExaminationSummary([]);
+                    }
+                  } catch (err) {
+                    setEnrollmentSummary([]);
+                    setExaminationSummary([]);
+                    setGlobalMessage({ type: 'error', text: 'Failed to fetch summary data' });
+                  }
+                }}
+              >
+                Filter
+              </button>
+            </div>
+            {filter.type === 'Student Enrollment' && filter.department && enrollmentSummary.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-xl font-bold mb-2">
+                  Student Enrollment Summary for {filter.department}
+                  {filteredYear && ` - ${filteredYear}`}
+                </h3>
+                <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
+                  <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <tr>
+                      <th className="px-4 py-2">Year Slot</th>
+                      <th className="px-4 py-2">Category</th>
+                      <th className="px-4 py-2">Subcategory</th>
+                      <th className="px-4 py-2">Male</th>
+                      <th className="px-4 py-2">Female</th>
+                      <th className="px-4 py-2">Transgender</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearFilteredSummary.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2">{row.year}</td>
+                        <td className="px-4 py-2">{row.category}</td>
+                        <td className="px-4 py-2">{row.subcategory}</td>
+                        <td className="px-4 py-2">{row.male_count}</td>
+                        <td className="px-4 py-2">{row.female_count}</td>
+                        <td className="px-4 py-2">{row.transgender_count}</td>
+                      </tr>
+                    ))}
+                    {/* Totals Row for selected year only */}
+                    <tr className="font-bold bg-blue-50">
+                      <td className="px-4 py-2" colSpan={3}>Total ({filteredYear || 'All Years'})</td>
+                      <td className="px-4 py-2">{yearTotalCounts.male}</td>
+                      <td className="px-4 py-2">{yearTotalCounts.female}</td>
+                      <td className="px-4 py-2">{yearTotalCounts.transgender}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {filter.type === 'Student Examination' && filter.department && examinationSummary.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-xl font-bold mb-2">Student Examination Summary for {filter.department}</h3>
+                <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
+                  <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <tr>
+                      <th className="px-4 py-2">Category</th>
+                      <th className="px-4 py-2">Subcategory</th>
+                      <th className="px-4 py-2">Male</th>
+                      <th className="px-4 py-2">Female</th>
+                      <th className="px-4 py-2">Transgender</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {examinationSummary.map((row, idx) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2">{row.category}</td>
+                        <td className="px-4 py-2">{row.subcategory}</td>
+                        <td className="px-4 py-2">{row.male_count}</td>
+                        <td className="px-4 py-2">{row.female_count}</td>
+                        <td className="px-4 py-2">{row.transgender_count}</td>
+                      </tr>
+                    ))}
+                    {/* Totals Row */}
+                    <tr className="font-bold bg-blue-50">
+                      <td className="px-4 py-2" colSpan={2}>Total</td>
+                      <td className="px-4 py-2">
+                        {examinationSummary.reduce((t, r) => t + Number(r.male_count || 0), 0)}
+                      </td>
+                      <td className="px-4 py-2">
+                        {examinationSummary.reduce((t, r) => t + Number(r.female_count || 0), 0)}
+                      </td>
+                      <td className="px-4 py-2">
+                        {examinationSummary.reduce((t, r) => t + Number(r.transgender_count || 0), 0)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
           <span className="inline-block w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-2xl shadow">D</span>
@@ -242,75 +437,81 @@ export default function Department() {
           </div>
         </form>
       )}
-      <div className="overflow-x-auto animate-fade-in">
-        <table className="min-w-full bg-white border-0 rounded-2xl shadow-xl overflow-hidden">
-          <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-            <tr>
-              <th className="p-4 text-left font-bold tracking-wide">Name</th>
-              <th className="p-4 text-left font-bold tracking-wide">Username</th>
-              <th className="p-4 text-left font-bold tracking-wide">Email</th>
-              <th className="p-4 text-left font-bold tracking-wide">Mobile</th>
-              <th className="p-4 text-left font-bold tracking-wide">Department</th>
-              <th className="p-4 text-left font-bold tracking-wide">Dept ID</th>
-              <th className="p-4 text-left font-bold tracking-wide">Academic Year</th>
-              <th className="p-4 text-left font-bold tracking-wide">Degree Level</th>
-              <th className="p-4 text-left font-bold tracking-wide">Duration</th>
-              <th className="p-4 text-left font-bold tracking-wide">HOD</th>
-              <th className="p-4 text-left font-bold tracking-wide">Locked</th>
-              <th className="p-4 text-left font-bold tracking-wide">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-blue-50">
-            {departmentUsers.map(user => (
-              deptUserEditId === user.id ? (
-                <tr key={user.id} className="bg-yellow-50 animate-pulse">
-                  <td className="p-3"><input name="name" value={deptUserEditForm.name} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, name: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><input name="username" value={deptUserEditForm.username} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, username: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><input name="email" value={deptUserEditForm.email} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, email: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><input name="mobile" value={deptUserEditForm.mobile} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, mobile: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><select name="department" value={deptUserEditForm.department} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, department: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl">
-                    <option value="">Select Department</option>
-                    {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select></td>
-                  <td className="p-3"><input name="dept_id" value={deptUserEditForm.dept_id} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><input name="academic_year" value={deptUserEditForm.academic_year} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><select name="degree_level" value={deptUserEditForm.degree_level} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl">
-                    <option value="">Select Degree Level</option>
-                    <option value="UG">UG</option>
-                    <option value="PG">PG</option>
-                  </select></td>
-                  <td className="p-3"><input name="duration" value={deptUserEditForm.duration} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3"><input name="hod" value={deptUserEditForm.hod} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                  <td className="p-3">{user.locked ? 'Yes' : 'No'}</td>
-                  <td className="p-3 flex gap-2">
-                    <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserUpdate(user.id)}>Save</button>
-                    <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleDeptUserCancelEdit}>Cancel</button>
-                  </td>
-                </tr>
-              ) : (
-                <tr key={user.id} className="hover:bg-blue-50 transition-all">
-                  <td className="p-4 font-semibold text-blue-900">{user.name}</td>
-                  <td className="p-4">{user.username}</td>
-                  <td className="p-4">{user.email}</td>
-                  <td className="p-4">{user.mobile}</td>
-                  <td className="p-4">{user.department}</td>
-                  <td className="p-4">{user.dept_id}</td>
-                  <td className="p-4">{user.academic_year}</td>
-                  <td className="p-4"><span className={`px-3 py-1 rounded-2xl text-xs font-bold ${user.degree_level === 'PG' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'bg-blue-100 text-blue-700'}`}>{user.degree_level}</span></td>
-                  <td className="p-4">{user.duration}</td>
-                  <td className="p-4">{user.hod}</td>
-                  <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
-                  <td className="p-4 flex gap-2">
-                    <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserEdit(user)}>Edit</button>
-                    <button className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserDelete(user.id)}>Delete</button>
-                    <button className={`px-4 py-2 rounded-2xl font-bold shadow transition-all ${user.locked ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`} onClick={() => handleDeptUserLockToggle(user.id, !user.locked)}>{user.locked ? 'Unlock' : 'Lock'}</button>
-                  </td>
-                </tr>
-              )
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!(filter.type === 'Student Enrollment' && filter.department && enrollmentSummary.length > 0) && (
+        <div className="overflow-x-auto animate-fade-in">
+          <table className="min-w-full bg-white border-0 rounded-2xl shadow-xl overflow-hidden">
+            <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <tr>
+                <th className="p-4 text-left font-bold tracking-wide">Name</th>
+                <th className="p-4 text-left font-bold tracking-wide">Username</th>
+                <th className="p-4 text-left font-bold tracking-wide">Email</th>
+                <th className="p-4 text-left font-bold tracking-wide">Mobile</th>
+                <th className="p-4 text-left font-bold tracking-wide">Department</th>
+                <th className="p-4 text-left font-bold tracking-wide">Dept ID</th>
+                <th className="p-4 text-left font-bold tracking-wide">Academic Year</th>
+                <th className="p-4 text-left font-bold tracking-wide">Degree Level</th>
+                <th className="p-4 text-left font-bold tracking-wide">Duration</th>
+                <th className="p-4 text-left font-bold tracking-wide">HOD</th>
+                <th className="p-4 text-left font-bold tracking-wide">Password</th> {/* Add this */}
+                <th className="p-4 text-left font-bold tracking-wide">Locked</th>
+                <th className="p-4 text-left font-bold tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-blue-50">
+              {departmentUsers
+                .filter(user => !filter.department || user.department === filter.department)
+                .map(user => (
+                  deptUserEditId === user.id ? (
+                    <tr key={user.id} className="bg-yellow-50 animate-pulse">
+                      <td className="p-3"><input name="name" value={deptUserEditForm.name} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, name: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="username" value={deptUserEditForm.username} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, username: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="email" value={deptUserEditForm.email} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, email: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="mobile" value={deptUserEditForm.mobile} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, mobile: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><select name="department" value={deptUserEditForm.department} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, department: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl">
+                        <option value="">Select Department</option>
+                        {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                      </select></td>
+                      <td className="p-3"><input name="dept_id" value={deptUserEditForm.dept_id} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="academic_year" value={deptUserEditForm.academic_year} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><select name="degree_level" value={deptUserEditForm.degree_level} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl">
+                        <option value="">Select Degree Level</option>
+                        <option value="UG">UG</option>
+                        <option value="PG">PG</option>
+                      </select></td>
+                      <td className="p-3"><input name="duration" value={deptUserEditForm.duration} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="hod" value={deptUserEditForm.hod} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><input name="password" value={deptUserEditForm.password} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, password: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3 flex gap-2">
+                        <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserUpdate(user.id)}>Save</button>
+                        <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleDeptUserCancelEdit}>Cancel</button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={user.id} className="hover:bg-blue-50 transition-all">
+                      <td className="p-4 font-semibold text-blue-900">{user.name}</td>
+                      <td className="p-4">{user.username}</td>
+                      <td className="p-4">{user.email}</td>
+                      <td className="p-4">{user.mobile}</td>
+                      <td className="p-4">{user.department}</td>
+                      <td className="p-4">{user.dept_id}</td>
+                      <td className="p-4">{user.academic_year}</td>
+                      <td className="p-4"><span className={`px-3 py-1 rounded-2xl text-xs font-bold ${user.degree_level === 'PG' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'bg-blue-100 text-blue-700'}`}>{user.degree_level}</span></td>
+                      <td className="p-4">{user.duration}</td>
+                      <td className="p-4">{user.hod}</td>
+                      <td className="p-4">{user.password}</td> {/* Show password */}
+                      <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
+                      <td className="p-4 flex gap-2">
+                        <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserEdit(user)}>Edit</button>
+                        <button className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserDelete(user.id)}>Delete</button>
+                        <button className={`px-4 py-2 rounded-2xl font-bold shadow transition-all ${user.locked ? 'bg-gray-600 hover:bg-gray-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`} onClick={() => handleDeptUserLockToggle(user.id, !user.locked)}>{user.locked ? 'Unlock' : 'Lock'}</button>
+                      </td>
+                    </tr>
+                  )
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

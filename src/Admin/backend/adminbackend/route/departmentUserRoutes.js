@@ -7,7 +7,9 @@ const {
   updateDepartmentUser,
   deleteDepartmentUser,
   toggleLockDepartmentUser,
-  getDistinctAcademicYears
+  getDistinctAcademicYears,
+  getStudentEnrollmentSummary,
+  getStudentExaminationSummary,
 } = require('../adminController/departmentUserController');
 
 // Department user management routes
@@ -18,5 +20,7 @@ router.put('/:id', updateDepartmentUser); // Update an existing department user
 router.delete('/:id', deleteDepartmentUser); // Delete a department user
 router.patch('/:id/lock', toggleLockDepartmentUser); // Lock or unlock a department user
 router.get('/distinct/years', getDistinctAcademicYears); // Get distinct academic years
+router.get('/student-enrollment/summary', getStudentEnrollmentSummary); // Get student enrollment summary
+router.get('/student-examination/summary', getStudentExaminationSummary); // Get student examination summary
 
 module.exports = router;
