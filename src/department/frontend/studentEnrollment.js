@@ -13,7 +13,6 @@ const API = {
   student_enrollment: (deptId) => `${API_BASE}/student-enrollment/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
   hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
-  degree_level: (deptId) => `${API_BASE}/department-user/degree-level/${deptId}`,
 };
 
 const categoryMaster = {
@@ -53,9 +52,11 @@ const subcategoryInfo = {
 };
 
 export default function StudentEnrollment({ userData }) {
-  const [degreeLevel, setDegreeLevel] = useState('');
-  const [duration, setDuration] = useState('');
-  const [yearSlots, setYearSlots] = useState([]);
+  const [degreeLevel, setDegreeLevel] = useState('UG'); // UG by default
+
+  const getYearSlots = () => (degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year']);
+  const yearSlots = getYearSlots();
+
   const [academicYears, setAcademicYears] = useState([]);
   const [currentYearSlot, setCurrentYearSlot] = useState(0);
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
@@ -86,39 +87,6 @@ export default function StudentEnrollment({ userData }) {
   const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
   const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
 
-
-  useEffect(() => {
-    const fetchDegreeLevelAndDuration = async () => {
-      if (!userData?.dept_id) return;
-      try {
-        const res = await axios.get(API.degree_level(userData.dept_id), {
-          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
-        });
-        if (res.data.success) {
-          setDegreeLevel(res.data.degree_level);
-          setDuration(res.data.duration);
-
-          // Set yearSlots based on duration (always ['I Year', 'II Year', ...])
-          const roman = ['I', 'II', 'III' ];
-          const dur = parseInt(res.data.duration, 10);
-          if (dur > 0 && dur <= roman.length) {
-            setYearSlots(Array.from({ length: dur }, (_, i) => `${roman[i]} Year`));
-          } else {
-            setYearSlots(['I Year', 'II Year', 'III Year']);
-          }
-        } else {
-          setDegreeLevel('');
-          setDuration('');
-          setYearSlots(['I Year', 'II Year', 'III Year']);
-        }
-      } catch {
-        setDegreeLevel('');
-        setDuration('');
-        setYearSlots(['I Year', 'II Year', 'III Year']);
-      }
-    };
-    fetchDegreeLevelAndDuration();
-  }, [userData]);
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -226,7 +194,10 @@ export default function StudentEnrollment({ userData }) {
   // Fetch year completion status (call this in useEffect or after data changes)
   const fetchYearCompletionStatus = async () => {
     try {
-      const res = await fetch(`${API_BASE}/student-enrollment/year-completion-status/${userData.dept_id}`);
+      const yearsParam = encodeURIComponent(yearSlots.join(','));
+      const res = await fetch(
+        `${API_BASE}/student-enrollment/year-completion-status/${userData.dept_id}?years=${yearsParam}&degree_level=${degreeLevel}`
+      );
       if (!res.ok) {
         // Try to parse error JSON, or fallback to a generic error
         let errorMsg = 'Failed to fetch year completion status';
@@ -269,17 +240,13 @@ export default function StudentEnrollment({ userData }) {
   };
 
   const checkDeclarationLockStatus = async () => {
-    if (!userData?.dept_id || !yearSlots.length) {
-      setIsDeclarationLocked(false);
-      return;
-    }
     try {
       const res = await axios.get(
         `http://localhost:5000/api/student-enrollment/declaration-lock-status`,
         {
           params: {
             deptId: userData?.dept_id,
-            year: yearSlots.join(', '),
+            year: yearSlots.join(', '), // or the relevant years
             type: 'Student Enrollment'
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
@@ -292,11 +259,10 @@ export default function StudentEnrollment({ userData }) {
   };
 
   useEffect(() => {
-    if (userData?.dept_id && yearSlots.length) {
+    if (userData?.dept_id) {
       checkDeclarationLockStatus();
     }
-    // eslint-disable-next-line
-  }, [userData, yearSlots]);
+  }, [userData]);
 
   const handleEnrollmentSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -321,7 +287,8 @@ export default function StudentEnrollment({ userData }) {
                 subcategory_id: parseInt(subcatId),
                 gender_id: parseInt(genderId),
                 count: parseInt(count),
-                year: yearSlots[currentYearSlot]
+                year: yearSlots[currentYearSlot],
+                degree_level: degreeLevel // <-- Add this
               });
             }
           });
@@ -501,21 +468,22 @@ export default function StudentEnrollment({ userData }) {
   };
 
   useEffect(() => {
-    if (isUpdateMode) {
-      // Reset form to empty and exit update mode when year changes
-      const emptyData = {};
-      subcategories.forEach(sub => {
-        emptyData[sub] = {};
-        categories.forEach(cat => {
-          emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-        });
+    setCurrentYearSlot(0);
+    // Optionally reset enrollment data if needed
+    const emptyData = {};
+    subcategories.forEach(sub => {
+      emptyData[sub] = {};
+      categories.forEach(cat => {
+        emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
       });
-      setEnrollmentData(emptyData);
-      setIsUpdateMode(false);
-    }
-    // Optionally, fetch student details for the new year slot
-    // fetchStudentDetails();
-  }, [currentYearSlot]);
+    });
+    setEnrollmentData(emptyData);
+  }, [degreeLevel]);
+
+  useEffect(() => {
+    fetchYearCompletionStatus();
+    // ...other logic...
+  }, [degreeLevel]);
 
   return (
     <>
@@ -582,9 +550,17 @@ export default function StudentEnrollment({ userData }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Degree Level
               </label>
-              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700">
-                {degreeLevel || 'N/A'}
-              </div>
+              <select
+                value={degreeLevel}
+                onChange={e => {
+                  setDegreeLevel(e.target.value);
+                  setCurrentYearSlot(0); // Reset year slot on degree change
+                }}
+                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
+              >
+                <option value="UG">UG</option>
+                <option value="PG">PG</option>
+              </select>
             </div>
             <div className="flex-1 flex gap-2 justify-end items-end">
               <button
@@ -815,7 +791,7 @@ export default function StudentEnrollment({ userData }) {
                     <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
                       <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
                       <td className="px-6 py-4">{detail.year}</td>
-                      <td className="px-6 py-4">{detail.degree_level || degreeLevel}</td> {/* Show degree_level */}
+                      <td className="px-6 py-4">{detail.degree_level}</td> {/* Add this */}
                       <td className="px-6 py-4">{detail.category}</td>
                       <td className="px-6 py-4">{detail.subcategory}</td>
                       <td className="px-6 py-4">
@@ -837,7 +813,7 @@ export default function StudentEnrollment({ userData }) {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-400 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    <td colSpan="8" className="px-6 py-12 text-center text-gray-400 bg-gradient-to-r from-blue-50 to-indigo-50">
                       <div className="flex flex-col items-center justify-center">
                         <RiBarChartBoxLine className="w-12 h-12 text-gray-300 mb-2" />
                         <p className="text-gray-600 font-medium">No enrollment records found</p>
@@ -850,14 +826,6 @@ export default function StudentEnrollment({ userData }) {
             </table>
           </div>
         </div>
-
-        {/* New PG Enrollment Banner */}
-        {degreeLevel === 'PG' && (
-          <div className="mb-8 p-6 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800 rounded-xl shadow">
-            Student Enrollment (PG)
-          </div>
-        )}
-
       </div>
 
       {/* Info Modals */}
