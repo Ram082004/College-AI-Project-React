@@ -239,6 +239,7 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
+  // Check if declaration is locked for the current degree level
   const checkDeclarationLockStatus = async () => {
     try {
       const res = await axios.get(
@@ -247,7 +248,8 @@ export default function StudentEnrollment({ userData }) {
           params: {
             deptId: userData?.dept_id,
             year: yearSlots.join(', '), // or the relevant years
-            type: 'Student Enrollment'
+            type: 'Student Enrollment',
+            degree_level: degreeLevel // <-- Pass degree_level
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         }
@@ -258,11 +260,13 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
+  // Re-check lock status when degreeLevel changes
   useEffect(() => {
     if (userData?.dept_id) {
       checkDeclarationLockStatus();
     }
-  }, [userData]);
+    // eslint-disable-next-line
+  }, [userData, degreeLevel]);
 
   const handleEnrollmentSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -361,7 +365,8 @@ export default function StudentEnrollment({ userData }) {
           department: userData?.department,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Enrollment',
-          hod: hodName
+          hod: hodName,
+          degree_level: degreeLevel // <-- Pass degree_level
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -371,7 +376,8 @@ export default function StudentEnrollment({ userData }) {
         {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
-          type: 'Student Enrollment'
+          type: 'Student Enrollment',
+          degree_level: degreeLevel // <-- Pass degree_level
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -961,6 +967,10 @@ export default function StudentEnrollment({ userData }) {
                   <p className="text-lg font-semibold text-gray-900">
                     {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
                   </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Degree Level</p>
+                  <p className="text-lg font-semibold text-gray-900">{degreeLevel}</p>
                 </div>
               </div>
             </div>

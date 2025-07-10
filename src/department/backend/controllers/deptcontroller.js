@@ -446,15 +446,15 @@ exports.updateExaminationStatus = async (req, res) => {
 // Submit enrollment declaration
 exports.submitEnrollmentDeclaration = async (req, res) => {
   try {
-    const { dept_id, name, department, year, type, hod } = req.body;
-    if (!dept_id || !name || !department || !year || !type || !hod) {
+    const { dept_id, name, department, year, type, hod, degree_level } = req.body;
+    if (!dept_id || !name || !department || !year || !type || !hod || !degree_level) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, hod, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type, hod]
+       (dept_id, name, department, year, type, hod, degree_level, submitted_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [dept_id, name, department, year, type, hod, degree_level]
     );
     res.json({ success: true, message: 'Enrollment declaration submitted successfully' });
   } catch (error) {
@@ -463,18 +463,28 @@ exports.submitEnrollmentDeclaration = async (req, res) => {
 };
 
 // Submit examination declaration
+// Enhanced: include degree_level for Student Examination
 exports.submitExaminationDeclaration = async (req, res) => {
   try {
-    const { dept_id, name, department, year, type, hod } = req.body;
-    if (!dept_id || !name || !department || !year || !type || !hod) {
+    const { dept_id, name, department, year, type, hod, degree_level } = req.body;
+    if (!dept_id || !name || !department || !year || !type || !hod || (type === 'Student Examination' && !degree_level)) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
-    await pool.query(
-      `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, hod, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type, hod]
-    );
+    if (type === 'Student Examination') {
+      await pool.query(
+        `INSERT INTO submitted_data 
+         (dept_id, name, department, year, type, hod, degree_level, submitted_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [dept_id, name, department, year, type, hod, degree_level]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO submitted_data 
+         (dept_id, name, department, year, type, hod, submitted_at) 
+         VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+        [dept_id, name, department, year, type, hod]
+      );
+    }
     res.json({ success: true, message: 'Examination declaration submitted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to submit declaration', error: error.message });
@@ -594,16 +604,22 @@ exports.getExaminationYearCompletionStatus = async (req, res) => {
 };
 
 // POST /student-enrollment/lock-declaration
+// Enhanced: include degree_level for Student Examination
 exports.lockDeclaration = async (req, res) => {
   try {
-    const { dept_id, year, type } = req.body;
-    if (!dept_id || !year || !type) {
-      return res.status(400).json({ success: false, message: 'dept_id, year, and type are required' });
+    const { dept_id, year, type, degree_level } = req.body;
+    if (!dept_id || !year || !type || (type === 'Student Examination' && !degree_level)) {
+      return res.status(400).json({ success: false, message: 'dept_id, year, type, and degree_level are required' });
     }
-    await pool.query(
-      `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ?`,
-      [dept_id, year, type]
-    );
+    let query, params;
+    if (type === 'Student Examination') {
+      query = `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ?`;
+      params = [dept_id, year, type, degree_level];
+    } else {
+      query = `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ?`;
+      params = [dept_id, year, type];
+    }
+    await pool.query(query, params);
     res.json({ success: true, message: 'Declaration locked successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to lock declaration', error: error.message });
@@ -632,16 +648,22 @@ exports.getHodName = async (req, res) => {
 };
 
 // Check if declaration is locked and submitted
+// Enhanced: include degree_level for Student Examination
 exports.getDeclarationLockStatus = async (req, res) => {
   try {
-    const { deptId, year, type } = req.query;
-    if (!deptId || !year || !type) {
-      return res.status(400).json({ success: false, message: 'deptId, year, and type are required' });
+    const { deptId, year, type, degree_level } = req.query;
+    if (!deptId || !year || !type || (type === 'Student Examination' && !degree_level)) {
+      return res.status(400).json({ success: false, message: 'deptId, year, type, and degree_level are required' });
     }
-    const [rows] = await pool.query(
-      `SELECT locked FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? ORDER BY submitted_at DESC LIMIT 1`,
-      [deptId, year, type]
-    );
+    let query, params;
+    if (type === 'Student Examination') {
+      query = `SELECT locked FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? ORDER BY submitted_at DESC LIMIT 1`;
+      params = [deptId, year, type, degree_level];
+    } else {
+      query = `SELECT locked FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? ORDER BY submitted_at DESC LIMIT 1`;
+      params = [deptId, year, type];
+    }
+    const [rows] = await pool.query(query, params);
     if (rows.length > 0 && rows[0].locked === 1) {
       return res.json({ success: true, locked: true });
     }

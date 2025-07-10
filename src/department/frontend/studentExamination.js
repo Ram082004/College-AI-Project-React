@@ -184,9 +184,9 @@ export default function StudentExamination({ userData, yearSlots }) {
     // eslint-disable-next-line
   }, [userData, degreeLevel]);
 
-  // Helper to check if all years are completed for examination (like student enrollment)
+  // Helper to check if all years are completed for the selected degree level
   const isAllExamYearsCompleted = () => {
-    return yearSlots.every((slot) => examYearCompletionStatus[slot] === 'finished');
+    return getYearSlots().every((slot) => examYearCompletionStatus[slot] === 'finished');
   };
 
   // Helper to get all finished years (like student enrollment)
@@ -347,7 +347,7 @@ export default function StudentExamination({ userData, yearSlots }) {
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Examination',
           hod: hodName,
-          degree_level: degreeLevel // <-- Add this
+          degree_level: degreeLevel // <-- Pass degree_level
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -357,7 +357,8 @@ export default function StudentExamination({ userData, yearSlots }) {
         {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
-          type: 'Student Examination'
+          type: 'Student Examination',
+          degree_level: degreeLevel // <-- Pass degree_level
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -382,8 +383,9 @@ export default function StudentExamination({ userData, yearSlots }) {
         {
           params: {
             deptId: userData?.dept_id,
-            year: yearSlots.join(', '),
-            type: 'Student Examination'
+            year: getYearSlots().join(', '),
+            type: 'Student Examination',
+            degree_level: degreeLevel // <-- Pass degree_level
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         }
@@ -398,7 +400,7 @@ export default function StudentExamination({ userData, yearSlots }) {
     if (userData?.dept_id) {
       checkDeclarationLockStatus();
     }
-  }, [userData]);
+  }, [userData, degreeLevel]);
 
   const fetchExaminationDataForYear = async (yearSlot, resultType) => {
     if (!userData?.dept_id) return;
@@ -678,7 +680,7 @@ export default function StudentExamination({ userData, yearSlots }) {
                 })}
               </div>
               {/* Show Final Declaration Button if all years are completed */}
-              {getYearSlots().every((slot) => examYearCompletionStatus[slot] === 'finished') && !isDeclarationLocked && (
+              {isAllExamYearsCompleted() && !isDeclarationLocked && (
                 <div className="flex justify-end mt-6">
                   <button
                     className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
