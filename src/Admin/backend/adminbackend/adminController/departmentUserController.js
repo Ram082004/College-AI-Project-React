@@ -157,9 +157,10 @@ exports.getDistinctAcademicYears = async (req, res) => {
 
 exports.getStudentEnrollmentSummary = async (req, res) => {
   try {
-    const { department, category, subcategory, year } = req.query; // <-- Add year
+    const { department, category, subcategory, year, degree_level } = req.query;
     let query = `
       SELECT 
+        se.degree_level,
         c.name as category,
         sc.name as subcategory,
         se.year,
@@ -190,7 +191,11 @@ exports.getStudentEnrollmentSummary = async (req, res) => {
       query += ' AND se.year = ?';
       params.push(year);
     }
-    query += ' GROUP BY c.name, sc.name, se.year ORDER BY se.year, c.name, sc.name';
+    if (degree_level) {
+      query += ' AND se.degree_level = ?';
+      params.push(degree_level);
+    }
+    query += ' GROUP BY se.degree_level, se.year, c.name, sc.name ORDER BY se.degree_level, se.year, c.name, sc.name';
     const [rows] = await pool.query(query, params);
     res.json({ success: true, summary: rows });
   } catch (error) {
@@ -200,9 +205,11 @@ exports.getStudentEnrollmentSummary = async (req, res) => {
 
 exports.getStudentExaminationSummary = async (req, res) => {
   try {
-    const { department, category, subcategory } = req.query;
+    const { department, category, subcategory, year, degree_level } = req.query;
     let query = `
       SELECT 
+        se.degree_level,
+        se.year,
         c.name as category,
         sc.name as subcategory,
         SUM(CASE WHEN g.name = 'Male' THEN se.count ELSE 0 END) as male_count,
@@ -228,7 +235,15 @@ exports.getStudentExaminationSummary = async (req, res) => {
       query += ' AND sc.name = ?';
       params.push(subcategory);
     }
-    query += ' GROUP BY c.name, sc.name ORDER BY c.name, sc.name';
+    if (year) {
+      query += ' AND se.year = ?';
+      params.push(year);
+    }
+    if (degree_level) {
+      query += ' AND se.degree_level = ?';
+      params.push(degree_level);
+    }
+    query += ' GROUP BY se.degree_level, se.year, c.name, sc.name ORDER BY se.degree_level, se.year, c.name, sc.name';
     const [rows] = await pool.query(query, params);
     res.json({ success: true, summary: rows });
   } catch (error) {

@@ -23,6 +23,7 @@ const departmentOptions = [
 ];
 
 const yearSlotOptions = ['I Year', 'II Year', 'III Year'];
+const degreeLevelOptions = ['UG', 'PG'];
 
 export default function Department() {
   const [departmentUsers, setDepartmentUsers] = useState([]);
@@ -41,7 +42,8 @@ export default function Department() {
     type: '', // 'Student Enrollment' or 'Student Examination'
     category: '',
     subcategory: '',
-    yearSlot: '', // <-- Add this
+    yearSlot: '',
+    degree_level: '', // <-- Add this
   });
   const [enrollmentSummary, setEnrollmentSummary] = useState([]);
   const [examinationSummary, setExaminationSummary] = useState([]);
@@ -268,6 +270,16 @@ export default function Department() {
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.degree_level}
+                onChange={e => setFilter(f => ({ ...f, degree_level: e.target.value }))}
+              >
+                <option value="">All Degree Levels</option>
+                {degreeLevelOptions.map(opt => (
+                  <option key={opt} value={opt}>{opt}</option>
+                ))}
+              </select>
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded"
                 onClick={async () => {
@@ -278,7 +290,8 @@ export default function Department() {
                           department: filter.department,
                           category: filter.category,
                           subcategory: filter.subcategory,
-                          year: filter.yearSlot, // <-- Add this
+                          year: filter.yearSlot,
+                          degree_level: filter.degree_level, // <-- Pass degree_level
                         },
                         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
                       });
@@ -290,7 +303,8 @@ export default function Department() {
                           department: filter.department,
                           category: filter.category,
                           subcategory: filter.subcategory,
-                          year: filter.yearSlot, // <-- Add this
+                          year: filter.yearSlot,
+                          degree_level: filter.degree_level, // <-- Pass degree_level
                         },
                         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
                       });
@@ -310,16 +324,19 @@ export default function Department() {
                 Filter
               </button>
             </div>
+            {/* Enrollment Summary Table */}
             {filter.type === 'Student Enrollment' && filter.department && enrollmentSummary.length > 0 && (
               <div className="mb-8">
                 <h3 className="text-xl font-bold mb-2">
                   Student Enrollment Summary for {filter.department}
                   {filteredYear && ` - ${filteredYear}`}
+                  {filter.degree_level && ` (${filter.degree_level})`}
                 </h3>
                 <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
                   <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                     <tr>
                       <th className="px-4 py-2">Year Slot</th>
+                      <th className="px-4 py-2">Degree Level</th>
                       <th className="px-4 py-2">Category</th>
                       <th className="px-4 py-2">Subcategory</th>
                       <th className="px-4 py-2">Male</th>
@@ -331,6 +348,7 @@ export default function Department() {
                     {yearFilteredSummary.map((row, idx) => (
                       <tr key={idx}>
                         <td className="px-4 py-2">{row.year}</td>
+                        <td className="px-4 py-2">{row.degree_level || '-'}</td>
                         <td className="px-4 py-2">{row.category}</td>
                         <td className="px-4 py-2">{row.subcategory}</td>
                         <td className="px-4 py-2">{row.male_count}</td>
@@ -340,7 +358,7 @@ export default function Department() {
                     ))}
                     {/* Totals Row for selected year only */}
                     <tr className="font-bold bg-blue-50">
-                      <td className="px-4 py-2" colSpan={3}>Total ({filteredYear || 'All Years'})</td>
+                      <td className="px-4 py-2" colSpan={4}>Total ({filteredYear || 'All Years'}{filter.degree_level && `, ${filter.degree_level}`})</td>
                       <td className="px-4 py-2">{yearTotalCounts.male}</td>
                       <td className="px-4 py-2">{yearTotalCounts.female}</td>
                       <td className="px-4 py-2">{yearTotalCounts.transgender}</td>
@@ -349,12 +367,18 @@ export default function Department() {
                 </table>
               </div>
             )}
+            {/* Examination Summary Table */}
             {filter.type === 'Student Examination' && filter.department && examinationSummary.length > 0 && (
               <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2">Student Examination Summary for {filter.department}</h3>
+                <h3 className="text-xl font-bold mb-2">
+                  Student Examination Summary for {filter.department}
+                  {filter.degree_level && ` (${filter.degree_level})`}
+                </h3>
                 <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
                   <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
                     <tr>
+                      <th className="px-4 py-2">Degree Level</th>
+                      <th className="px-4 py-2">Year</th>
                       <th className="px-4 py-2">Category</th>
                       <th className="px-4 py-2">Subcategory</th>
                       <th className="px-4 py-2">Male</th>
@@ -365,6 +389,8 @@ export default function Department() {
                   <tbody>
                     {examinationSummary.map((row, idx) => (
                       <tr key={idx}>
+                        <td className="px-4 py-2">{row.degree_level || '-'}</td>
+                        <td className="px-4 py-2">{row.year || '-'}</td>
                         <td className="px-4 py-2">{row.category}</td>
                         <td className="px-4 py-2">{row.subcategory}</td>
                         <td className="px-4 py-2">{row.male_count}</td>
@@ -374,7 +400,7 @@ export default function Department() {
                     ))}
                     {/* Totals Row */}
                     <tr className="font-bold bg-blue-50">
-                      <td className="px-4 py-2" colSpan={2}>Total</td>
+                      <td className="px-4 py-2" colSpan={4}>Total{filter.degree_level && ` (${filter.degree_level})`}</td>
                       <td className="px-4 py-2">
                         {examinationSummary.reduce((t, r) => t + Number(r.male_count || 0), 0)}
                       </td>
