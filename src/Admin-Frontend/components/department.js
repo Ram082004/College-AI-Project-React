@@ -22,7 +22,8 @@ const departmentOptions = [
   'B.SC Chemistry',
 ];
 
-const yearSlotOptions = ['I Year', 'II Year', 'III Year'];
+const yearSlotOptionsUG = ['I Year', 'II Year', 'III Year'];
+const yearSlotOptionsPG = ['I Year', 'II Year'];
 const degreeLevelOptions = ['UG', 'PG'];
 
 export default function Department() {
@@ -206,6 +207,22 @@ export default function Department() {
     { male: 0, female: 0, transgender: 0 }
   );
 
+  // Dynamically choose year slots based on degree_level
+  const getYearSlotOptions = () => {
+    if (filter.degree_level === 'UG') return yearSlotOptionsUG;
+    if (filter.degree_level === 'PG') return yearSlotOptionsPG;
+    return yearSlotOptionsUG; // Default to UG if not selected
+  };
+
+  // Reset yearSlot if degree_level changes and current yearSlot is not valid
+  useEffect(() => {
+    const validYears = getYearSlotOptions();
+    if (filter.yearSlot && !validYears.includes(filter.yearSlot)) {
+      setFilter(f => ({ ...f, yearSlot: '' }));
+    }
+    // eslint-disable-next-line
+  }, [filter.degree_level]);
+
   return (
     <div className="p-0 md:p-2">
       {/* Department Data Collapsible Container */}
@@ -266,7 +283,7 @@ export default function Department() {
                 onChange={e => setFilter(f => ({ ...f, yearSlot: e.target.value }))}
               >
                 <option value="">All Year Slots</option>
-                {yearSlotOptions.map(opt => (
+                {getYearSlotOptions().map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
@@ -276,9 +293,8 @@ export default function Department() {
                 onChange={e => setFilter(f => ({ ...f, degree_level: e.target.value }))}
               >
                 <option value="">All Degree Levels</option>
-                {degreeLevelOptions.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
+                <option value="UG">UG</option>
+                <option value="PG">PG</option>
               </select>
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded"
@@ -325,94 +341,106 @@ export default function Department() {
               </button>
             </div>
             {/* Enrollment Summary Table */}
-            {filter.type === 'Student Enrollment' && filter.department && enrollmentSummary.length > 0 && (
+            {filter.type === 'Student Enrollment' && filter.department && (
               <div className="mb-8">
                 <h3 className="text-xl font-bold mb-2">
                   Student Enrollment Summary for {filter.department}
                   {filteredYear && ` - ${filteredYear}`}
                   {filter.degree_level && ` (${filter.degree_level})`}
                 </h3>
-                <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
-                  <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <tr>
-                      <th className="px-4 py-2">Year Slot</th>
-                      <th className="px-4 py-2">Degree Level</th>
-                      <th className="px-4 py-2">Category</th>
-                      <th className="px-4 py-2">Subcategory</th>
-                      <th className="px-4 py-2">Male</th>
-                      <th className="px-4 py-2">Female</th>
-                      <th className="px-4 py-2">Transgender</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {yearFilteredSummary.map((row, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2">{row.year}</td>
-                        <td className="px-4 py-2">{row.degree_level || '-'}</td>
-                        <td className="px-4 py-2">{row.category}</td>
-                        <td className="px-4 py-2">{row.subcategory}</td>
-                        <td className="px-4 py-2">{row.male_count}</td>
-                        <td className="px-4 py-2">{row.female_count}</td>
-                        <td className="px-4 py-2">{row.transgender_count}</td>
+                {yearFilteredSummary.length > 0 ? (
+                  <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
+                    <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                      <tr>
+                        <th className="px-4 py-2">Year Slot</th>
+                        <th className="px-4 py-2">Degree Level</th>
+                        <th className="px-4 py-2">Category</th>
+                        <th className="px-4 py-2">Subcategory</th>
+                        <th className="px-4 py-2">Male</th>
+                        <th className="px-4 py-2">Female</th>
+                        <th className="px-4 py-2">Transgender</th>
                       </tr>
-                    ))}
-                    {/* Totals Row for selected year only */}
-                    <tr className="font-bold bg-blue-50">
-                      <td className="px-4 py-2" colSpan={4}>Total ({filteredYear || 'All Years'}{filter.degree_level && `, ${filter.degree_level}`})</td>
-                      <td className="px-4 py-2">{yearTotalCounts.male}</td>
-                      <td className="px-4 py-2">{yearTotalCounts.female}</td>
-                      <td className="px-4 py-2">{yearTotalCounts.transgender}</td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {yearFilteredSummary.map((row, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-2">{row.year}</td>
+                          <td className="px-4 py-2">{row.degree_level || '-'}</td>
+                          <td className="px-4 py-2">{row.category}</td>
+                          <td className="px-4 py-2">{row.subcategory}</td>
+                          <td className="px-4 py-2">{row.male_count}</td>
+                          <td className="px-4 py-2">{row.female_count}</td>
+                          <td className="px-4 py-2">{row.transgender_count}</td>
+                        </tr>
+                      ))}
+                      <tr className="font-bold bg-blue-50">
+                        <td className="px-4 py-2" colSpan={4}>Total ({filteredYear || 'All Years'}{filter.degree_level && `, ${filter.degree_level}`})</td>
+                        <td className="px-4 py-2">{yearTotalCounts.male}</td>
+                        <td className="px-4 py-2">{yearTotalCounts.female}</td>
+                        <td className="px-4 py-2">{yearTotalCounts.transgender}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <svg className="mx-auto mb-2 w-10 h-10 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    No enrollment summary found for the selected filter.
+                  </div>
+                )}
               </div>
             )}
             {/* Examination Summary Table */}
-            {filter.type === 'Student Examination' && filter.department && examinationSummary.length > 0 && (
+            {filter.type === 'Student Examination' && filter.department && (
               <div className="mb-8">
                 <h3 className="text-xl font-bold mb-2">
                   Student Examination Summary for {filter.department}
                   {filter.degree_level && ` (${filter.degree_level})`}
                 </h3>
-                <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
-                  <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
-                    <tr>
-                      <th className="px-4 py-2">Degree Level</th>
-                      <th className="px-4 py-2">Year</th>
-                      <th className="px-4 py-2">Category</th>
-                      <th className="px-4 py-2">Subcategory</th>
-                      <th className="px-4 py-2">Male</th>
-                      <th className="px-4 py-2">Female</th>
-                      <th className="px-4 py-2">Transgender</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {examinationSummary.map((row, idx) => (
-                      <tr key={idx}>
-                        <td className="px-4 py-2">{row.degree_level || '-'}</td>
-                        <td className="px-4 py-2">{row.year || '-'}</td>
-                        <td className="px-4 py-2">{row.category}</td>
-                        <td className="px-4 py-2">{row.subcategory}</td>
-                        <td className="px-4 py-2">{row.male_count}</td>
-                        <td className="px-4 py-2">{row.female_count}</td>
-                        <td className="px-4 py-2">{row.transgender_count}</td>
+                {examinationSummary.length > 0 ? (
+                  <table className="min-w-full bg-white border rounded-xl shadow overflow-hidden">
+                    <thead className="bg-gradient-to-r from-blue-50 to-indigo-50">
+                      <tr>
+                        <th className="px-4 py-2">Degree Level</th>
+                        <th className="px-4 py-2">Year</th>
+                        <th className="px-4 py-2">Category</th>
+                        <th className="px-4 py-2">Subcategory</th>
+                        <th className="px-4 py-2">Male</th>
+                        <th className="px-4 py-2">Female</th>
+                        <th className="px-4 py-2">Transgender</th>
                       </tr>
-                    ))}
-                    {/* Totals Row */}
-                    <tr className="font-bold bg-blue-50">
-                      <td className="px-4 py-2" colSpan={4}>Total{filter.degree_level && ` (${filter.degree_level})`}</td>
-                      <td className="px-4 py-2">
-                        {examinationSummary.reduce((t, r) => t + Number(r.male_count || 0), 0)}
-                      </td>
-                      <td className="px-4 py-2">
-                        {examinationSummary.reduce((t, r) => t + Number(r.female_count || 0), 0)}
-                      </td>
-                      <td className="px-4 py-2">
-                        {examinationSummary.reduce((t, r) => t + Number(r.transgender_count || 0), 0)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {examinationSummary.map((row, idx) => (
+                        <tr key={idx}>
+                          <td className="px-4 py-2">{row.degree_level || '-'}</td>
+                          <td className="px-4 py-2">{row.year || '-'}</td>
+                          <td className="px-4 py-2">{row.category}</td>
+                          <td className="px-4 py-2">{row.subcategory}</td>
+                          <td className="px-4 py-2">{row.male_count}</td>
+                          <td className="px-4 py-2">{row.female_count}</td>
+                          <td className="px-4 py-2">{row.transgender_count}</td>
+                        </tr>
+                      ))}
+                      <tr className="font-bold bg-blue-50">
+                        <td className="px-4 py-2" colSpan={4}>Total{filter.degree_level && ` (${filter.degree_level})`}</td>
+                        <td className="px-4 py-2">
+                          {examinationSummary.reduce((t, r) => t + Number(r.male_count || 0), 0)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {examinationSummary.reduce((t, r) => t + Number(r.female_count || 0), 0)}
+                        </td>
+                        <td className="px-4 py-2">
+                          {examinationSummary.reduce((t, r) => t + Number(r.transgender_count || 0), 0)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                ) : (
+                  <div className="text-center text-gray-500 py-8">
+                    <svg className="mx-auto mb-2 w-10 h-10 text-gray-300" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    No examination summary found for the selected filter.
+                  </div>
+                )}
               </div>
             )}
           </div>

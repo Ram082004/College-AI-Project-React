@@ -114,16 +114,19 @@ exports.getProfile = async (req, res) => {
 // Get dashboard statistics
 exports.getStatistics = async (req, res) => {
   try {
-    const [departments] = await pool.query('SELECT COUNT(*) as count FROM departments');
-    const [faculty] = await pool.query('SELECT COUNT(*) as count FROM faculty');
-    const [students] = await pool.query('SELECT COUNT(*) as count FROM students');
-    
+    // Get department count from department_users table
+    const [departments] = await pool.query('SELECT COUNT(DISTINCT dept_id) as count FROM department_users');
+    // Get faculty count from department_users table (if you have a role/column for faculty, otherwise set to 0)
+    const [faculty] = await pool.query('SELECT COUNT(*) as count FROM department_users WHERE role = "faculty"');
+    // Get student count from student_enrollment table
+    const [students] = await pool.query('SELECT SUM(count) as count FROM student_enrollment');
+
     res.json({
       success: true,
       statistics: {
         departmentCount: departments[0].count,
-        facultyCount: faculty[0].count,
-        studentCount: students[0].count
+        facultyCount: faculty[0]?.count || 0,
+        studentCount: students[0]?.count || 0
       }
     });
 
@@ -226,6 +229,79 @@ exports.forgotPrinciplePassword = async (req, res) => {
       success: false,
       message: 'Failed to process password recovery request',
     });
+  }
+};
+
+// Get departments list
+exports.getDepartmentsList = async (req, res) => {
+  try {
+    // Get all department names and ids from department_master (or similar), fallback to department_users if not available
+    let departments;
+    try {
+      // Try to get from department_master (recommended for full list)
+      [departments] = await pool.query('SELECT id as dept_id, name as department FROM department_master');
+    } catch (e) {
+      // Fallback to department_users
+      [departments] = await pool.query('SELECT DISTINCT dept_id, department FROM department_users');
+    }
+    res.json({ success: true, departments });
+  } catch (error) {
+    console.error('Get departments list error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Get department details
+exports.getDepartmentDetails = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+    // Enrollment details
+    const [enrollmentDetails] = await pool.query(
+      `SELECT 
+        se.year,
+        se.degree_level,
+        cm.name as category,
+        scm.name as subcategory,
+        SUM(CASE WHEN gm.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN gm.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN gm.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_enrollment se
+      JOIN category_master cm ON se.category_id = cm.id
+      JOIN category_master scm ON se.subcategory_id = scm.id
+      JOIN gender_master gm ON se.gender_id = gm.id
+      WHERE se.dept_id = ?
+      GROUP BY se.year, se.degree_level, cm.name, scm.name`,
+      [deptId]
+    );
+
+    // Examination details
+    const [examinationDetails] = await pool.query(
+      `SELECT 
+        se.year,
+        se.degree_level,
+        cm.name as category,
+        scm.name as subcategory,
+        se.result_type,
+        SUM(CASE WHEN gm.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN gm.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN gm.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_examination se
+      JOIN category_master cm ON se.category_id = cm.id
+      JOIN category_master scm ON se.subcategory_id = scm.id
+      JOIN gender_master gm ON se.gender_id = gm.id
+      WHERE se.dept_id = ?
+      GROUP BY se.year, se.degree_level, cm.name, scm.name, se.result_type`,
+      [deptId]
+    );
+
+    res.json({
+      success: true,
+      enrollmentDetails,
+      examinationDetails
+    });
+  } catch (error) {
+    console.error('Get department details error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
 

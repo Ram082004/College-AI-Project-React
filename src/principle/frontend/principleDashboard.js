@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiDashboardLine,
-  RiTeamLine,
   RiLogoutBoxLine,
   RiSearchLine,
   RiFileListLine,
@@ -10,16 +9,17 @@ import {
   RiUserSettingsLine,
   RiBuilding2Line,
   RiBarChartBoxLine,
+  RiTeamLine,
   RiGovernmentLine
 } from 'react-icons/ri';
 import axios from 'axios';
+import PrincipleDeptDetails from './principledept'; // new component for details
 
 const API_BASE = 'http://localhost:5000/api/principle';
 const API = {
   DEPARTMENTS: `${API_BASE}/departments`,
-  STATISTICS: `${API_BASE}/statistics`,
-  REPORTS: `${API_BASE}/reports`,
-  PROFILE: `${API_BASE}/profile`
+  DEPARTMENTS_LIST: 'http://localhost:5000/api/principle/departments-list',
+  DEPARTMENT_DETAILS: (deptId) => `http://localhost:5000/api/principle/department-details/${deptId}`,
 };
 
 export default function PrincipleDashboard() {
@@ -31,10 +31,20 @@ export default function PrincipleDashboard() {
   const [globalMessage, setGlobalMessage] = useState(null);
 
   // Institution specific states
-  const [departmentCount, setDepartmentCount] = useState(0);
-  const [studentCount, setStudentCount] = useState(0);
-  const [facultyCount, setFacultyCount] = useState(0);
   const [recentReports, setRecentReports] = useState([]);
+  // Static master list for all departments (edit as needed)
+  const departmentMasterList = [
+    { dept_id: 1, department: 'B.C.A' },
+    { dept_id: 2, department: 'B.A ENGLISH' },
+    { dept_id: 3, department: 'M.A ENGLISH' },
+    { dept_id: 4, department: 'BBA' },
+    { dept_id: 5, department: 'B.COM' },
+    { dept_id: 6, department: 'B.SC MATHS' },
+    { dept_id: 7, department: 'M.SC MATHS' },
+    { dept_id: 8, department: 'B.SC CHEMISTRY' }
+  ];
+  const [departments, setDepartments] = useState([]);
+  const [selectedDept, setSelectedDept] = useState(null);
 
   useEffect(() => {
     const storedUser = localStorage.getItem('principleUser');
@@ -43,29 +53,31 @@ export default function PrincipleDashboard() {
       return;
     }
     setUserData(JSON.parse(storedUser));
-    fetchDashboardData();
   }, []);
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.get(API.STATISTICS, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`
-        }
-      });
-      if (response.data.success) {
-        const { statistics } = response.data;
-        setDepartmentCount(statistics.departmentCount);
-        setStudentCount(statistics.studentCount);
-        setFacultyCount(statistics.facultyCount);
-      }
-    } catch (error) {
-      setGlobalMessage({ type: 'error', text: 'Failed to fetch dashboard data' });
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (activeTab === 'departmentStatus') {
+      axios.get(API.DEPARTMENTS_LIST)
+        .then(res => {
+          if (res.data.success && Array.isArray(res.data.departments)) {
+            // Merge backend list with master list, prefer master for display
+            const backendDepts = res.data.departments;
+            // Map by department name (case-insensitive)
+            const backendMap = new Map(backendDepts.map(d => [(d.department || '').toUpperCase(), d]));
+            const merged = departmentMasterList.map(master => {
+              const found = backendMap.get(master.department.toUpperCase());
+              return found ? { ...master, ...found } : master;
+            });
+            setDepartments(merged);
+          } else {
+            setDepartments(departmentMasterList);
+          }
+        })
+        .catch(() => setDepartments(departmentMasterList));
     }
-  };
+  }, [activeTab]);
+
+
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
@@ -108,49 +120,15 @@ export default function PrincipleDashboard() {
               <RiDashboardLine className="text-xl" />
               <span>Overview</span>
             </motion.button>
-
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('departments')}
+              onClick={() => setActiveTab('departmentStatus')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'departments' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
+                activeTab === 'departmentStatus' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <RiBuilding2Line className="text-xl" />
-              <span>Departments</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('faculty')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'faculty' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <RiTeamLine className="text-xl" />
-              <span>Faculty</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('reports')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'reports' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <RiFileListLine className="text-xl" />
-              <span>Reports</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('profile')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'profile' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <RiUserSettingsLine className="text-xl" />
-              <span>Profile Settings</span>
+              <span>Department Details</span>
             </motion.button>
           </nav>
         </div>
@@ -208,116 +186,50 @@ export default function PrincipleDashboard() {
 
         {/* Main Content Area */}
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {activeTab === 'overview'
-                ? 'Institution Overview'
-                : activeTab === 'departments'
-                ? 'Department Management'
-                : activeTab === 'faculty'
-                ? 'Faculty Management'
-                : activeTab === 'reports'
-                ? 'Institution Reports'
-                : 'Profile Settings'}
-            </h1>
-            <p className="mt-1 text-gray-500">
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
-          </div>
 
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <motion.div
-              whileHover={{ y: -4 }}
-              className="bg-white p-6 rounded-xl shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Departments</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{departmentCount}</h3>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center">
-                  <RiBuilding2Line className="text-xl text-teal-600" />
-                </div>
+
+          {/* Department Status Tab Content */}
+          {activeTab === 'departmentStatus' && (
+            <div className="mt-8">
+              <h2 className="text-2xl font-extrabold text-center text-gradient bg-gradient-to-r from-teal-600 via-blue-500 to-purple-600 bg-clip-text text-transparent mb-8">Departments</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {departments.length === 0 ? (
+                  <div className="col-span-full text-center text-gray-400 py-8">No departments found.</div>
+                ) : (
+                  departments.map((dept, idx) => (
+                    <motion.div
+                      key={dept.dept_id + '-' + idx}
+                      whileHover={{ scale: 1.04 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`relative bg-gradient-to-br from-white via-blue-50 to-teal-50 p-4 rounded-2xl shadow-lg cursor-pointer transition-all border-2 ${
+                        selectedDept === dept.dept_id ? 'border-teal-500 ring-2 ring-teal-300' : 'border-gray-100 hover:border-teal-400'
+                      } group`}
+                      onClick={() => setSelectedDept(dept.dept_id)}
+                    >
+                      <div className="flex flex-col items-center justify-center h-full min-h-[70px]">
+                        <span className="block text-xs uppercase tracking-widest text-teal-500 font-bold mb-1">Department</span>
+                        <h3 className="text-base font-extrabold text-gray-800 mb-1 text-center group-hover:text-teal-700 transition-all">{dept.department || dept.dept_name || 'Department'}</h3>
+                        <div className="flex flex-col items-center mt-1">
+                          <span className="text-xs text-gray-400">{dept.head_of_department || ''}</span>
+                          <span className="text-xs text-gray-400">{dept.contact_number || ''}</span>
+                        </div>
+                      </div>
+                      {selectedDept === dept.dept_id && (
+                        <span className="absolute top-2 right-2 bg-teal-500 text-white text-xs px-2 py-1 rounded-full shadow">Selected</span>
+                      )}
+                    </motion.div>
+                  ))
+                )}
               </div>
-            </motion.div>
 
-            <motion.div
-              whileHover={{ y: -4 }}
-              className="bg-white p-6 rounded-xl shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Faculty</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{facultyCount}</h3>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <RiTeamLine className="text-xl text-emerald-600" />
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ y: -4 }}
-              className="bg-white p-6 rounded-xl shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Students</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{studentCount}</h3>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
-                  <RiTeamLine className="text-xl text-blue-600" />
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Main Content Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden"
-          >
-            <div className="p-6">
-              {/* Dynamic content based on active tab */}
-              {activeTab === 'overview' && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Recent Activities</h3>
-                  {/* Add overview content */}
-                </div>
-              )}
-
-              {activeTab === 'departments' && (
-                <div>
-                  {/* Department management content */}
-                </div>
-              )}
-
-              {activeTab === 'faculty' && (
-                <div>
-                  {/* Faculty management content */}
-                </div>
-              )}
-
-              {activeTab === 'reports' && (
-                <div>
-                  {/* Reports content */}
-                </div>
-              )}
-
-              {activeTab === 'profile' && (
-                <div>
-                  {/* Profile settings form */}
+              {/* Department Details Component */}
+              {selectedDept && (
+                <div className="mt-8">
+                  <PrincipleDeptDetails deptId={selectedDept} />
                 </div>
               )}
             </div>
-          </motion.div>
+          )}
         </div>
       </div>
 

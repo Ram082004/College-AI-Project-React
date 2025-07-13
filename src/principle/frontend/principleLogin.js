@@ -37,7 +37,7 @@ const PrincipleLogin = ({ onLoginSuccess, onBack }) => {
       if (response.data.success) {
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('principleUser', JSON.stringify(response.data.user));
-        localStorage.setItem('userType', 'principle');
+        localStorage.setItem('userType', 'SuperAdmin');
         onLoginSuccess();
       } else {
         setError(response.data.message || 'Login failed');

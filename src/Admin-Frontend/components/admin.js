@@ -183,7 +183,7 @@ export default function Admin() {
             <input name="mobile" value={newAdmin.mobile} onChange={handleNewAdminChange} placeholder="Mobile" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <select name="role" value={newAdmin.role} onChange={handleNewAdminChange} className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required>
               <option value="Admin">Admin</option>
-              <option value="SuperAdmin">SuperAdmin</option>
+              <option value="Principle">Principle</option>
             </select>
             <input name="password" value={newAdmin.password} onChange={handleNewAdminChange} placeholder="Password" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
           </div>
@@ -216,7 +216,7 @@ export default function Admin() {
                   <td className="p-3"><input name="mobile" value={editForm.mobile} onChange={handleEditChange} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3"><select name="role" value={editForm.role} onChange={handleEditChange} className="p-2 border-2 border-yellow-300 rounded-xl">
                     <option value="Admin">Admin</option>
-                    <option value="SuperAdmin">SuperAdmin</option>
+                    <option value="Principle">Principle</option>
                   </select></td>
                   <td className="p-3"><input name="password" value={editForm.password} onChange={handleEditChange} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3 flex gap-2">
