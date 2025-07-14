@@ -41,7 +41,9 @@ export default function PrincipleDashboard() {
     { dept_id: 5, department: 'B.COM' },
     { dept_id: 6, department: 'B.SC MATHS' },
     { dept_id: 7, department: 'M.SC MATHS' },
-    { dept_id: 8, department: 'B.SC CHEMISTRY' }
+    { dept_id: 8, department: 'B.SC CHEMISTRY' },
+    { dept_id: 9, department: 'M.COM' },
+    { dept_id: 10, department: 'B.SC PHYSICS' }
   ];
   const [departments, setDepartments] = useState([]);
   const [selectedDept, setSelectedDept] = useState(null);
@@ -158,18 +160,7 @@ export default function PrincipleDashboard() {
                 <RiDashboardLine className="text-xl text-gray-600" />
               </button>
 
-              <div className="flex-1 max-w-xl mx-4">
-                <div className="relative">
-                  <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                  />
-                </div>
-              </div>
+              {/* Search option removed as per request */}
 
               <div className="flex items-center space-x-4">
                 <div className="text-right">

@@ -17,6 +17,8 @@ const departmentOptions = [
   "B.SC Maths",
   "M.SC Maths",
   "B.SC Chemistry",
+  "M.COM",
+  "B.SC Physics",
 ];
 
 function SubmittedData() {

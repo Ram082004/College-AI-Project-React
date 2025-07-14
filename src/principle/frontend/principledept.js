@@ -43,10 +43,14 @@ export default function PrincipleDeptDetails({ deptId }) {
   const levels = ['UG', 'PG'];
   const details = activeTab === 'enrollment' ? enrollmentDetails : examinationDetails;
 
-  // Show year status only after degreeLevel is selected
+  // Show year status for all possible years (even if no data)
+  const yearSlots = {
+    UG: ['I Year', 'II Year', 'III Year'],
+    PG: ['I Year', 'II Year']
+  };
   const filteredDetails = degreeLevel ? details.filter(row => row.degree_level === degreeLevel) : [];
-  const allYears = degreeLevel ? Array.from(new Set(filteredDetails.map(row => row.year))) : [];
-  const yearStatus = allYears.map(year => ({
+  const possibleYears = degreeLevel ? yearSlots[degreeLevel] : [];
+  const yearStatus = possibleYears.map(year => ({
     year,
     status: filteredDetails.some(row => row.year === year) ? 'Completed' : 'Incompleted'
   }));

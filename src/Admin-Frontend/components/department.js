@@ -20,6 +20,8 @@ const departmentOptions = [
   'B.SC Maths',
   'M.SC Maths',
   'B.SC Chemistry',
+  'M.COM',
+  'B.SC Physics',
 ];
 
 const yearSlotOptionsUG = ['I Year', 'II Year', 'III Year'];
