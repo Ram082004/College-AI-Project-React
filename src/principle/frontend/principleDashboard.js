@@ -13,7 +13,8 @@ import {
   RiGovernmentLine
 } from 'react-icons/ri';
 import axios from 'axios';
-import PrincipleDeptDetails from './principledept'; // new component for details
+import PrincipleDeptDetails from './principledept';
+import PrincipleSubmission from './principleSubmission';
 
 const API_BASE = 'http://localhost:5000/api/principle';
 const API = {
@@ -132,6 +133,16 @@ export default function PrincipleDashboard() {
               <RiBuilding2Line className="text-xl" />
               <span>Department Details</span>
             </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('submission')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'submission' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiUpload2Line className="text-xl" />
+              <span>Submission</span>
+            </motion.button>
           </nav>
         </div>
 
@@ -219,6 +230,13 @@ export default function PrincipleDashboard() {
                   <PrincipleDeptDetails deptId={selectedDept} />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Submission Tab Content */}
+          {activeTab === 'submission' && (
+            <div className="mt-8">
+              <PrincipleSubmission />
             </div>
           )}
         </div>

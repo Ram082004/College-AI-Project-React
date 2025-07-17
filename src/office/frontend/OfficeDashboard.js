@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import BasicInformation from './basic_information';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiDashboardLine,
@@ -107,26 +108,26 @@ export default function OfficeDashboard() {
           </div>
 
           <nav className="space-y-2">
-            {[
-              { id: 'overview', label: 'Overview', icon: RiDashboardLine },
-              { id: 'requests', label: 'Pending Requests', icon: RiTeamLine },
-              { id: 'documents', label: 'Documents', icon: RiFileListLine },
-              { id: 'notifications', label: 'Notifications', icon: RiMailSendLine },
-              { id: 'statistics', label: 'Statistics', icon: RiBarChartBoxLine },
-              { id: 'profile', label: 'Profile Settings', icon: RiUserSettingsLine }
-            ].map(({ id, label, icon: Icon }) => (
-              <motion.button
-                key={id}
-                whileHover={{ x: 4 }}
-                onClick={() => setActiveTab(id)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                  activeTab === id ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                <Icon className="text-xl" />
-                <span>{label}</span>
-              </motion.button>
-            ))}
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('overview')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'overview' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiDashboardLine className="text-xl" />
+              <span>Overview</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('basicinfo')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'basicinfo' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiFileListLine className="text-xl" />
+              <span>Basic Information</span>
+            </motion.button>
           </nav>
         </div>
 
@@ -259,8 +260,9 @@ export default function OfficeDashboard() {
                   </div>
                 </div>
               )}
-
-              {/* Add other tab contents similarly */}
+              {activeTab === 'basicinfo' && (
+                <BasicInformation />
+              )}
             </div>
           </motion.div>
         </div>

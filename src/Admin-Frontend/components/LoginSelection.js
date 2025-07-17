@@ -63,7 +63,7 @@ export default function LoginSelection({ onSelect }) {
           >
             <span className="absolute -inset-8 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 blur-xl rounded-full"></span>
             <h1 className="relative text-6xl font-black text-white tracking-tight">
-              AISHE <span className="bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text">Portal</span>
+              GASCKK AISHE <span className="bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text">PORTAL</span>
             </h1>
           </motion.div>
           <motion.p 

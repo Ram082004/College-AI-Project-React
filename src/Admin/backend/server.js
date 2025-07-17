@@ -61,7 +61,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/department-user', departmentUserRoutes);
 app.use('/api/office-user', officeUserRoutes);
 app.use('/api', departmentRoutes);
-app.use('/api', officeRoutes);
+app.use('/api/office', officeRoutes);
 app.use('/api/principle', principleRoutes); // Ensure this line is present
 app.use('/api/submitted-data', submittedUserRoutes);
 

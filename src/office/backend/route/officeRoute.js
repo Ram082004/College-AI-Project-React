@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { officeLogin, forgotOfficePassword } = require('../controllers/officeController');
+const basicInformationController = require('../controllers/basicInformationController');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -18,5 +19,15 @@ router.get('/office-forgot-password', (req, res) => {
     message: 'Method not allowed. Use POST request instead.'
   });
 });
+
+// Basic Information routes
+router.get('/basic-information', basicInformationController.getBasicInformation);
+router.post('/basic-information', basicInformationController.saveBasicInformation);
+
+// Office Details routes
+router.get('/office-details', basicInformationController.getOfficeDetails);
+router.post('/office-details', basicInformationController.saveOfficeDetails);
+router.get('/institution-address', basicInformationController.getInstitutionAddress);
+router.post('/institution-address', basicInformationController.saveInstitutionAddress);
 
 module.exports = router;
