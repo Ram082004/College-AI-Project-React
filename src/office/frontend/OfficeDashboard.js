@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import BasicInformation from './basic_information';
+import StaffEnrollment from './staff_enrollment';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiDashboardLine,
@@ -127,6 +128,16 @@ export default function OfficeDashboard() {
             >
               <RiFileListLine className="text-xl" />
               <span>Basic Information</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('staffenrollment')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'staffenrollment' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiTeamLine className="text-xl" />
+              <span>Staff Enrollment</span>
             </motion.button>
           </nav>
         </div>
@@ -262,6 +273,9 @@ export default function OfficeDashboard() {
               )}
               {activeTab === 'basicinfo' && (
                 <BasicInformation />
+              )}
+              {activeTab === 'staffenrollment' && (
+                <StaffEnrollment />
               )}
             </div>
           </motion.div>

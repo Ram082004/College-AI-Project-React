@@ -1,26 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  departmentLogin, 
+
+const deptenrollment = require('../controllers/deptenrollment');
+const deptexamination = require('../controllers/deptexamination');
+const {
+  departmentLogin,
   forgotDepartmentPassword,
-  addEnrollmentData,
-  getStudentDetails,
-  addExaminationData,
-  getExaminationDetails,
-  updateEnrollmentStatus,
-  updateExaminationStatus,
-  submitEnrollmentDeclaration,
-  submitExaminationDeclaration,
-  getEnrollmentYearStatuses,
-  getEnrollmentYearCompletionStatus,
-  getExaminationYearCompletionStatus,
-  getHodName,
-  getDeclarationLockStatus,
-  lockDeclaration,
-  updateEnrollmentData,
-  updateExaminationData
+  getHodName
 } = require('../controllers/deptcontroller');
-const { pool } = require('../../../Admin/backend/config/db'); // <-- existing
+const { pool } = require('../../../Admin/backend/config/db');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -28,21 +16,61 @@ router.use((req, res, next) => {
   next();
 });
 
-// Fixed routes - ensure POST method for enrollment-summary
+// ==================== AUTH ROUTES ====================
 router.post('/department-login', departmentLogin);
 router.post('/department-forgot-password', forgotDepartmentPassword);
-router.post('/enrollment-summary', addEnrollmentData); // This endpoint is used for adding data
-router.get('/student-enrollment/department/:deptId', getStudentDetails);
-router.post('/examination-summary', addExaminationData);
-router.get('/student-examination/department/:deptId', getExaminationDetails);
-router.post('/student-enrollment/update-status', updateEnrollmentStatus);
-router.post('/student-examination/update-status', updateExaminationStatus);
-router.post('/student-enrollment/submit-declaration', submitEnrollmentDeclaration);
-router.post('/student-examination/submit-declaration', submitExaminationDeclaration);
-router.get('/student-enrollment/year-statuses/:deptId', getEnrollmentYearStatuses);
-router.get('/student-examination/year-statuses/:deptId', getEnrollmentYearStatuses);
 
-// Add this route:
+// ==================== STUDENT ENROLLMENT ROUTES ====================
+// Add enrollment summary data
+router.post('/enrollment-summary', deptenrollment.addEnrollmentData);
+// Get student enrollment details for a department
+router.get('/student-enrollment/department/:deptId', deptenrollment.getStudentDetails);
+// Update enrollment status for students
+router.post('/student-enrollment/update-status', deptenrollment.updateEnrollmentStatus);
+// Submit enrollment declaration
+router.post('/student-enrollment/submit-declaration', deptenrollment.submitEnrollmentDeclaration);
+// Get year-wise enrollment statuses
+router.get('/student-enrollment/year-statuses/:deptId', deptenrollment.getEnrollmentYearStatuses);
+// Get year-wise enrollment completion status
+router.get('/student-enrollment/year-completion-status/:deptId', deptenrollment.getEnrollmentYearCompletionStatus);
+// Update enrollment data
+router.put('/student-enrollment/update', deptenrollment.updateEnrollmentData);
+// Lock enrollment declaration
+router.post('/student-enrollment/lock-declaration', deptenrollment.lockDeclaration);
+// Get enrollment declaration lock status
+router.get('/student-enrollment/declaration-lock-status', deptenrollment.getDeclarationLockStatus);
+// Delete enrollment data by year
+router.post('/student-enrollment/delete-by-year', deptenrollment.deleteEnrollmentByYear);
+// Prevent GET on submit-declaration
+router.get('/student-enrollment/submit-declaration', (req, res) => {
+  res.status(405).json({
+    success: false,
+    message: 'Method not allowed. Use POST request instead.'
+  });
+});
+
+// ==================== STUDENT EXAMINATION ROUTES ====================
+// Add examination summary data
+router.post('/examination-summary', deptexamination.addExaminationData);
+// Get student examination details for a department
+router.get('/student-examination/department/:deptId', deptexamination.getExaminationDetails);
+// Update examination status for students
+router.post('/student-examination/update-status', deptexamination.updateExaminationStatus);
+// Submit examination declaration
+router.post('/student-examination/submit-declaration', deptexamination.submitExaminationDeclaration);
+// Get year-wise examination statuses
+router.get('/student-examination/year-statuses/:deptId', deptexamination.getExaminationYearStatuses);
+// Get year-wise examination completion status
+router.get('/student-examination/year-completion-status/:deptId', deptexamination.getExaminationYearCompletionStatus);
+// Update examination data
+router.put('/student-examination/update', deptexamination.updateExaminationData);
+// Lock examination declaration
+router.post('/student-examination/lock-declaration', deptexamination.lockDeclaration);
+// Get examination declaration lock status
+router.get('/student-examination/declaration-lock-status', deptexamination.getDeclarationLockStatus);
+
+// ==================== DEPARTMENT USER ROUTES ====================
+// Get academic years for department user
 router.get('/department-user/academic-year/:deptId', async (req, res) => {
   try {
     const { deptId } = req.params;
@@ -59,30 +87,7 @@ router.get('/department-user/academic-year/:deptId', async (req, res) => {
   }
 });
 
-router.get('/student-enrollment/submit-declaration', (req, res) => {
-  res.status(405).json({
-    success: false,
-    message: 'Method not allowed. Use POST request instead.'
-  });
-});
-
-// Add this route for year completion status
-router.get('/student-enrollment/year-completion-status/:deptId', getEnrollmentYearCompletionStatus);
-router.get('/student-examination/year-completion-status/:deptId', getExaminationYearCompletionStatus);
-
-// Add this route to get HOD name for a department
+// Get HOD name for a department
 router.get('/department-user/hod/:deptId', getHodName);
-
-// Add this route to get declaration lock status
-router.get('/student-enrollment/declaration-lock-status', getDeclarationLockStatus);
-router.get('/student-examination/declaration-lock-status', getDeclarationLockStatus);
-
-// Add this POST route for locking declaration
-router.post('/student-enrollment/lock-declaration', lockDeclaration);
-router.post('/student-examination/lock-declaration', lockDeclaration);
-
-// Add this route for updating enrollment data
-router.put('/student-enrollment/update', updateEnrollmentData);
-router.put('/student-examination/update', updateExaminationData);
 
 module.exports = router;

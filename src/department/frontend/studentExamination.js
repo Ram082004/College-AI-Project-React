@@ -475,7 +475,8 @@ export default function StudentExamination({ userData, yearSlots }) {
               gender_id: parseInt(genderId),
               count: parseInt(count),
               year: yearSlots[currentYearSlot],
-              result_type: resultType
+              result_type: resultType,
+              degree_level: degreeLevel
             });
           });
         });
@@ -494,6 +495,17 @@ export default function StudentExamination({ userData, yearSlots }) {
         setGlobalMessage({ type: 'success', text: 'Examination data updated successfully' });
         fetchExaminationDetails();
         setIsUpdateMode(false);
+        // Reset form fields to zero after update
+        setExaminationData(() => {
+          const data = {};
+          subcategories.forEach(sub => {
+            data[sub] = {};
+            categories.forEach(cat => {
+              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+            });
+          });
+          return data;
+        });
       } else {
         setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update examination data' });
       }

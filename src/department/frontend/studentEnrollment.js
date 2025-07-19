@@ -86,7 +86,7 @@ export default function StudentEnrollment({ userData }) {
   const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
   const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
   const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
-
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(""); // NEW
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -98,18 +98,52 @@ export default function StudentEnrollment({ userData }) {
     // eslint-disable-next-line
   }, [userData]);
 
+  // Set default academic year when academicYears change
+  useEffect(() => {
+    if (academicYears.length > 0) {
+      setSelectedAcademicYear(academicYears[0]);
+    }
+  }, [academicYears]);
+
+  // Fetch student details for selected academic year
+  const fetchStudentDetails = async () => {
+    if (!userData?.dept_id || !selectedAcademicYear) return;
+    try {
+      const res = await axios.get(API.student_enrollment(userData.dept_id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      if (res.data.success) {
+        // Filter by selectedAcademicYear
+        setStudentDetails(res.data.details.filter(d => d.academic_year === selectedAcademicYear));
+      } else {
+        setStudentDetails([]);
+      }
+    } catch {
+      setStudentDetails([]);
+    }
+  };
+
+  // Re-fetch student details when academic year changes
+  useEffect(() => {
+    fetchStudentDetails();
+    // ...fetch other year-dependent data if needed...
+  }, [selectedAcademicYear]);
+
   // Fetch enrollment data for the selected year slot
   const fetchEnrollmentDataForYear = async (yearSlot) => {
-    if (!userData?.dept_id) return;
+    if (!userData?.dept_id || !selectedAcademicYear) return;
     setLoadingYearData(true);
     try {
       const res = await axios.get(API.student_enrollment(userData.dept_id), {
         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
       });
       if (res.data.success && Array.isArray(res.data.details)) {
-        // Filter for the selected year slot and latest academic year
+        // Filter for the selected year slot, academic year, and degree level
         const filtered = res.data.details.filter(
-          (row) => row.year === yearSlot
+          (row) =>
+            row.year === yearSlot &&
+            row.academic_year === selectedAcademicYear &&
+            row.degree_level === degreeLevel
         );
         // Build enrollmentData object
         const newData = {};
@@ -160,18 +194,6 @@ export default function StudentEnrollment({ userData }) {
       else setAcademicYears([]);
     } catch {
       setAcademicYears([]);
-    }
-  };
-
-  const fetchStudentDetails = async () => {
-    try {
-      const res = await axios.get(API.student_enrollment(userData.dept_id), {
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
-      });
-      if (res.data.success) setStudentDetails(res.data.details);
-      else setStudentDetails([]);
-    } catch {
-      setStudentDetails([]);
     }
   };
 
@@ -272,7 +294,6 @@ export default function StudentEnrollment({ userData }) {
     if (e && e.preventDefault) e.preventDefault();
     setSubmitting(true);
     try {
-      const selectedAcademicYear = academicYears[0];
       if (!selectedAcademicYear) {
         setGlobalMessage({ type: 'error', text: 'Academic year not found' });
         setSubmitting(false);
@@ -425,12 +446,6 @@ export default function StudentEnrollment({ userData }) {
     // Second click: update data
     setUpdating(true);
     try {
-      const selectedAcademicYear = academicYears[0];
-      if (!selectedAcademicYear) {
-        setGlobalMessage({ type: 'error', text: 'Academic year not found' });
-        setUpdating(false);
-        return;
-      }
       const updateRecords = [];
       Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
         Object.entries(categoryMaster).forEach(([catId, catName]) => {
@@ -443,7 +458,8 @@ export default function StudentEnrollment({ userData }) {
               subcategory_id: parseInt(subcatId),
               gender_id: parseInt(genderId),
               count: parseInt(count),
-              year: yearSlots[currentYearSlot]
+              year: yearSlots[currentYearSlot],
+              degree_level: degreeLevel // <-- Make sure this is included
             });
           });
         });
@@ -462,6 +478,19 @@ export default function StudentEnrollment({ userData }) {
         setGlobalMessage({ type: 'success', text: 'Enrollment data updated successfully' });
         fetchStudentDetails();
         setIsUpdateMode(false); // Reset update mode after successful update
+        // await fetchEnrollmentDataForYear(yearSlots[currentYearSlot]); // REMOVE THIS LINE
+
+        // Reset form fields to zero after update
+        setEnrollmentData(() => {
+          const data = {};
+          subcategories.forEach(sub => {
+            data[sub] = {};
+            categories.forEach(cat => {
+              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+            });
+          });
+          return data;
+        });
       } else {
         setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update enrollment data' });
       }
@@ -527,9 +556,15 @@ export default function StudentEnrollment({ userData }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Academic Year *
               </label>
-              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700 text-base">
-                {academicYears[0] || 'N/A'}
-              </div>
+              <select
+                value={selectedAcademicYear}
+                onChange={e => setSelectedAcademicYear(e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
+              >
+                {academicYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
             </div>
             <div className="flex-1 min-w-[180px] max-w-xs">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
