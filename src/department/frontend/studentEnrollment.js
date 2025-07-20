@@ -269,9 +269,10 @@ export default function StudentEnrollment({ userData }) {
         {
           params: {
             deptId: userData?.dept_id,
-            year: yearSlots.join(', '), // or the relevant years
+            year: yearSlots.join(', '),
             type: 'Student Enrollment',
-            degree_level: degreeLevel // <-- Pass degree_level
+            degree_level: degreeLevel,
+            academic_year: selectedAcademicYear // <-- Add this
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         }
@@ -387,18 +388,20 @@ export default function StudentEnrollment({ userData }) {
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Enrollment',
           hod: hodName,
-          degree_level: degreeLevel // <-- Pass degree_level
+          degree_level: degreeLevel,
+          academic_year: selectedAcademicYear // <-- Add this
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
-      // Lock the declaration after successful submission
+      // Lock after submit
       await axios.post(
         'http://localhost:5000/api/student-enrollment/lock-declaration',
         {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Enrollment',
-          degree_level: degreeLevel // <-- Pass degree_level
+          degree_level: degreeLevel,
+          academic_year: selectedAcademicYear // <-- Add this
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -556,15 +559,12 @@ export default function StudentEnrollment({ userData }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Academic Year *
               </label>
-              <select
+              <input
+                type="text"
                 value={selectedAcademicYear}
-                onChange={e => setSelectedAcademicYear(e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
-              >
-                {academicYears.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
+                readOnly
+                className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-base cursor-not-allowed"
+              />
             </div>
             <div className="flex-1 min-w-[180px] max-w-xs">
               <label className="block text-sm font-semibold text-gray-700 mb-2">

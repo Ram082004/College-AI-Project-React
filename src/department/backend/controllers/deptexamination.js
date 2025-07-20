@@ -119,8 +119,8 @@ exports.updateExaminationStatus = async (req, res) => {
       });
     }
     await pool.query(
-      'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ?',
-      [status, dept_id, year]
+      'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ?',
+      [status, dept_id, year, academic_year]
     );
     res.json({ success: true, message: `Status updated to ${status}` });
   } catch (error) {
@@ -187,15 +187,15 @@ exports.updateExaminationData = async (req, res) => {
 // Submit examination declaration
 exports.submitExaminationDeclaration = async (req, res) => {
   try {
-    const { dept_id, name, department, year, type, hod, degree_level } = req.body;
-    if (!dept_id || !name || !department || !year || !type || !hod || !degree_level) {
+    const { dept_id, name, department, year, type, hod, degree_level, academic_year } = req.body;
+    if (!dept_id || !name || !department || !year || !type || !hod || !degree_level || !academic_year) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, hod, degree_level, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type, hod, degree_level]
+       (dept_id, name, department, year, type, hod, degree_level, academic_year, submitted_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [dept_id, name, department, year, type, hod, degree_level, academic_year]
     );
     res.json({ success: true, message: 'Examination declaration submitted successfully' });
   } catch (error) {
@@ -206,13 +206,13 @@ exports.submitExaminationDeclaration = async (req, res) => {
 // POST /student-examination/lock-declaration
 exports.lockDeclaration = async (req, res) => {
   try {
-    const { dept_id, year, type, degree_level } = req.body;
-    if (!dept_id || !year || !type || !degree_level) {
-      return res.status(400).json({ success: false, message: 'dept_id, year, type, and degree_level are required' });
+    const { dept_id, year, type, degree_level, academic_year } = req.body;
+    if (!dept_id || !year || !type || !degree_level || !academic_year) {
+      return res.status(400).json({ success: false, message: 'dept_id, year, type, degree_level, and academic_year are required' });
     }
     await pool.query(
-      `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ?`,
-      [dept_id, year, type, degree_level]
+      `UPDATE submitted_data SET locked = 1 WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? AND academic_year = ?`,
+      [dept_id, year, type, degree_level, academic_year]
     );
     res.json({ success: true, message: 'Declaration locked successfully' });
   } catch (error) {
@@ -223,13 +223,13 @@ exports.lockDeclaration = async (req, res) => {
 // Check if declaration is locked and submitted
 exports.getDeclarationLockStatus = async (req, res) => {
   try {
-    const { deptId, year, type, degree_level } = req.query;
-    if (!deptId || !year || !type || !degree_level) {
-      return res.status(400).json({ success: false, message: 'deptId, year, type, and degree_level are required' });
+    const { deptId, year, type, degree_level, academic_year } = req.query;
+    if (!deptId || !year || !type || !degree_level || !academic_year) {
+      return res.status(400).json({ success: false, message: 'deptId, year, type, degree_level, and academic_year are required' });
     }
     const [rows] = await pool.query(
-      `SELECT locked FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? ORDER BY submitted_at DESC LIMIT 1`,
-      [deptId, year, type, degree_level]
+      `SELECT locked FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? AND academic_year = ? ORDER BY submitted_at DESC LIMIT 1`,
+      [deptId, year, type, degree_level, academic_year]
     );
     if (rows.length > 0 && rows[0].locked === 1) {
       return res.json({ success: true, locked: true });
@@ -302,7 +302,7 @@ exports.getExaminationYearCompletionStatus = async (req, res) => {
         [deptId, academicYear, year, degree_level]
       );
       if (rows.length > 0 && rows[0].status && rows[0].status.trim().toLowerCase() === 'finished') {
-        result[year] = 'finished';
+        result[year] = 'completed'; // <-- CHANGE THIS LINE
       } else {
         result[year] = 'incomplete';
       }

@@ -85,6 +85,7 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [degreeLevel, setDegreeLevel] = useState('UG'); // UG by default
   const [examYearCompletionStatus, setExamYearCompletionStatus] = useState({});
   const [examStatusAcademicYear, setExamStatusAcademicYear] = useState('');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
 
   // Replace all yearSlots usage with getYearSlots()
   const getYearSlots = () => (degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year']);
@@ -115,8 +116,12 @@ export default function StudentExamination({ userData, yearSlots }) {
       const res = await axios.get(API.student_examination(userData.dept_id), {
         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
       });
-      if (res.data.success) setExaminationDetails(res.data.details);
-      else setExaminationDetails([]);
+      if (res.data.success) {
+        // Filter by selectedAcademicYear
+        setExaminationDetails(res.data.details.filter(d => d.academic_year === selectedAcademicYear));
+      } else {
+        setExaminationDetails([]);
+      }
     } catch {
       setExaminationDetails([]);
     }
@@ -186,7 +191,7 @@ export default function StudentExamination({ userData, yearSlots }) {
 
   // Helper to check if all years are completed for the selected degree level
   const isAllExamYearsCompleted = () => {
-    return getYearSlots().every((slot) => examYearCompletionStatus[slot] === 'finished');
+    return getYearSlots().every((slot) => examYearCompletionStatus[slot] === 'completed');
   };
 
   // Helper to get all finished years (like student enrollment)
@@ -347,7 +352,8 @@ export default function StudentExamination({ userData, yearSlots }) {
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Examination',
           hod: hodName,
-          degree_level: degreeLevel // <-- Pass degree_level
+          degree_level: degreeLevel,
+          academic_year: selectedAcademicYear // <-- Add this
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -358,7 +364,8 @@ export default function StudentExamination({ userData, yearSlots }) {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Examination',
-          degree_level: degreeLevel // <-- Pass degree_level
+          degree_level: degreeLevel,
+          academic_year: selectedAcademicYear // <-- Add this
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -385,7 +392,8 @@ export default function StudentExamination({ userData, yearSlots }) {
             deptId: userData?.dept_id,
             year: getYearSlots().join(', '),
             type: 'Student Examination',
-            degree_level: degreeLevel // <-- Pass degree_level
+            degree_level: degreeLevel,
+            academic_year: selectedAcademicYear // <-- Add this
           },
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         }
@@ -532,6 +540,33 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   }, [currentYearSlot, resultType]);
 
+  // Set default selected academic year when academicYears is fetched
+  useEffect(() => {
+    if (academicYears.length > 0) {
+      setSelectedAcademicYear(academicYears[0]);
+    }
+  }, [academicYears]);
+
+  // Fetch examination details and year completion status when selected academic year changes
+  useEffect(() => {
+    if (selectedAcademicYear) {
+      fetchExaminationDetails();
+      fetchExamYearCompletionStatus();
+      // Reset form if needed
+      setExaminationData(() => {
+        const data = {};
+        subcategories.forEach(sub => {
+          data[sub] = {};
+          categories.forEach(cat => {
+            data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+          });
+        });
+        return data;
+      });
+      setCurrentYearSlot(0);
+    }
+  }, [selectedAcademicYear, degreeLevel]);
+
   return (
     <>
       <div className="space-y-8">
@@ -569,9 +604,12 @@ export default function StudentExamination({ userData, yearSlots }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Academic Year *
               </label>
-              <div className="w-full px-5 py-3 rounded-xl border border-gray-200 bg-gray-100 shadow-sm text-gray-700">
-                {academicYears[0] || 'N/A'}
-              </div>
+              <input
+                type="text"
+                value={selectedAcademicYear}
+                readOnly
+                className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-base cursor-not-allowed"
+              />
             </div>
             {/* Degree Level Selector */}
             <div className="flex-1 min-w-[180px] max-w-xs">
@@ -658,7 +696,7 @@ export default function StudentExamination({ userData, yearSlots }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 {getYearSlots().map((slot) => {
                   // Use the same logic as student enrollment: status is 'finished' for completed
-                  const isCompleted = examYearCompletionStatus[slot] === 'finished';
+                  const isCompleted = examYearCompletionStatus[slot] === 'completed';
                   return (
                     <div
                       key={slot}
