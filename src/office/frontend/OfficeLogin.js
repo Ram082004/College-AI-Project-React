@@ -25,7 +25,7 @@ const OfficeLogin = ({ onLoginSuccess, onBack }) => {
         return;
       }
 
-      const response = await axios.post('http://localhost:5000/api/office-login', {
+      const response = await axios.post('http://localhost:5000/api/office/office-login', {
         username,
         password,
       }, {

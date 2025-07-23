@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import BasicInformation from './basic_information';
-import StaffEnrollment from './staff_enrollment';
+import StaffEnrollment from './non_teaching_staff';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiDashboardLine,
@@ -109,16 +109,7 @@ export default function OfficeDashboard() {
           </div>
 
           <nav className="space-y-2">
-            <motion.button
-              whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'overview' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <RiDashboardLine className="text-xl" />
-              <span>Overview</span>
-            </motion.button>
+            {/* Remove Overview Tab */}
             <motion.button
               whileHover={{ x: 4 }}
               onClick={() => setActiveTab('basicinfo')}
@@ -131,13 +122,13 @@ export default function OfficeDashboard() {
             </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('staffenrollment')}
+              onClick={() => setActiveTab('nonteachingstaff')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'staffenrollment' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
+                activeTab === 'nonteachingstaff' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <RiTeamLine className="text-xl" />
-              <span>Staff Enrollment</span>
+              <span>Non-Teaching Staff</span>
             </motion.button>
           </nav>
         </div>
@@ -249,32 +240,11 @@ export default function OfficeDashboard() {
             className="bg-white rounded-xl shadow-sm overflow-hidden"
           >
             <div className="p-6">
-              {activeTab === 'overview' && (
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-                  <div className="divide-y divide-gray-200">
-                    {recentDocuments.map(doc => (
-                      <div key={doc.id} className="py-4 flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900">{doc.title}</h4>
-                          <p className="text-sm text-gray-500">{doc.date}</p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm ${
-                          doc.status === 'approved' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {doc.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Remove overview content */}
               {activeTab === 'basicinfo' && (
                 <BasicInformation />
               )}
-              {activeTab === 'staffenrollment' && (
+              {activeTab === 'nonteachingstaff' && (
                 <StaffEnrollment />
               )}
             </div>

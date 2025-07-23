@@ -86,6 +86,8 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [examYearCompletionStatus, setExamYearCompletionStatus] = useState({});
   const [examStatusAcademicYear, setExamStatusAcademicYear] = useState('');
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   // Replace all yearSlots usage with getYearSlots()
   const getYearSlots = () => (degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year']);
@@ -567,6 +569,67 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   }, [selectedAcademicYear, degreeLevel]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(examinationDetails.length / recordsPerPage);
+  const paginatedDetails = examinationDetails.slice(
+    (currentPage - 1) * recordsPerPage,
+    currentPage * recordsPerPage
+  );
+
+  // Pagination UI
+  function renderPagination() {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    const maxPageButtons = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxPageButtons - 1);
+    if (end - start < maxPageButtons - 1) {
+      start = Math.max(1, end - maxPageButtons + 1);
+    }
+    if (start > 1) {
+      pages.push(
+        <button key={1} onClick={() => setCurrentPage(1)} className="px-3 py-2 rounded-lg border bg-white text-gray-700 font-semibold mx-1 hover:bg-blue-50">1</button>
+      );
+      if (start > 2) pages.push(<span key="start-ellipsis" className="mx-1 text-gray-400">...</span>);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => setCurrentPage(i)}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${i === currentPage ? 'bg-blue-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          {i}
+        </button>
+      );
+    }
+    if (end < totalPages) {
+      if (end < totalPages - 1) pages.push(<span key="end-ellipsis" className="mx-1 text-gray-400">...</span>);
+      pages.push(
+        <button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="px-3 py-2 rounded-lg border bg-white text-gray-700 font-semibold mx-1 hover:bg-blue-50">{totalPages}</button>
+      );
+    }
+    return (
+      <div className="flex items-center justify-center mt-8 mb-2">
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          &lt; Back
+        </button>
+        {pages}
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          Next &gt;
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-8">
@@ -873,7 +936,7 @@ export default function StudentExamination({ userData, yearSlots }) {
               <tr>
                 <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Academic Year</th>
                 <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Year</th>
-                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Degree Level</th> {/* NEW */}
+                <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Degree Level</th>
                 <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Result Type</th>
                 <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Category</th>
                 <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Subcategory</th>
@@ -883,8 +946,8 @@ export default function StudentExamination({ userData, yearSlots }) {
               </tr>
             </thead>
             <tbody>
-              {examinationDetails.length > 0 ? (
-                examinationDetails.map((detail, index) => (
+              {paginatedDetails.length > 0 ? (
+                paginatedDetails.map((detail, index) => (
                   <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
                     <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
                     <td className="px-6 py-4">{detail.year}</td>
@@ -923,6 +986,7 @@ export default function StudentExamination({ userData, yearSlots }) {
             </tbody>
           </table>
         </div>
+        {renderPagination()}
       </div>
 
       {/* Confirmation Dialog */}

@@ -4,7 +4,7 @@ const { pool } = require('../../config/db');
 exports.getAllOfficeUsers = async (req, res) => {
   try {
     const [rows] = await pool.query(
-      'SELECT id, name, username, email, mobile, office_id, password, locked FROM office_users'
+      'SELECT id, name, username, email, mobile, office_id, password, academic_year, locked FROM office_users'
     );
     res.json({ success: true, users: rows });
   } catch (error) {
@@ -15,9 +15,9 @@ exports.getAllOfficeUsers = async (req, res) => {
 // Add office user
 exports.addOfficeUser = async (req, res) => {
   try {
-    const { name, username, email, mobile, office_id, password } = req.body;
-    if (!name || !username || !email || !mobile || !office_id || !password) {
-      return res.status(400).json({ success: false, message: 'All fields including password are required' });
+    const { name, username, email, mobile, office_id, password, academic_year } = req.body;
+    if (!name || !username || !email || !mobile || !office_id || !password || !academic_year) {
+      return res.status(400).json({ success: false, message: 'All fields including academic year are required' });
     }
     const [exists] = await pool.query(
       'SELECT id FROM department_users WHERE username = ? OR email = ?',
@@ -27,8 +27,8 @@ exports.addOfficeUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Username or Email already exists' });
     }
     const [result] = await pool.query(
-      'INSERT INTO office_users (name, username, email, mobile, office_id, password, locked) VALUES (?, ?, ?, ?, ?, ?, 0)',
-      [name, username, email, mobile, office_id, password]
+      'INSERT INTO office_users (name, username, email, mobile, office_id, password, academic_year, locked) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
+      [name, username, email, mobile, office_id, password, academic_year]
     );
     if (result.affectedRows > 0) {
       res.json({ success: true, message: 'Office user added successfully' });
@@ -44,8 +44,8 @@ exports.addOfficeUser = async (req, res) => {
 exports.updateOfficeUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, username, email, mobile, office_id, password } = req.body;
-    if (!name || !username || !email || !mobile || !office_id) {
+    const { name, username, email, mobile, office_id, password, academic_year } = req.body;
+    if (!name || !username || !email || !mobile || !office_id || !academic_year) {
       return res.status(400).json({ success: false, message: 'All fields except password are required' });
     }
     const [existing] = await pool.query('SELECT id FROM office_users WHERE id = ?', [id]);
@@ -61,13 +61,13 @@ exports.updateOfficeUser = async (req, res) => {
     }
     if (password && password.trim() !== '') {
       await pool.query(
-        'UPDATE office_users SET name = ?, username = ?, email = ?, mobile = ?, office_id = ?, password = ? WHERE id = ?',
-        [name, username, email, mobile, office_id, password, id]
+        'UPDATE office_users SET name = ?, username = ?, email = ?, mobile = ?, office_id = ?, password = ?, academic_year = ? WHERE id = ?',
+        [name, username, email, mobile, office_id, password, academic_year, id]
       );
     } else {
       await pool.query(
-        'UPDATE office_users SET name = ?, username = ?, email = ?, mobile = ?, office_id = ? WHERE id = ?',
-        [name, username, email, mobile, office_id, id]
+        'UPDATE office_users SET name = ?, username = ?, email = ?, mobile = ?, office_id = ?, academic_year = ? WHERE id = ?',
+        [name, username, email, mobile, office_id, academic_year, id]
       );
     }
     res.json({ success: true, message: 'Office user updated successfully' });

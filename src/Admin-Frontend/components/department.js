@@ -40,6 +40,8 @@ export default function Department() {
   const [deptUserLoading, setDeptUserLoading] = useState(false);
   const [showDeptUserForm, setShowDeptUserForm] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [academicYears, setAcademicYears] = useState([]);
+  // Add academic_year to filter state
   const [filter, setFilter] = useState({
     department: '',
     type: '', // 'Student Enrollment' or 'Student Examination'
@@ -47,6 +49,7 @@ export default function Department() {
     subcategory: '',
     yearSlot: '',
     degree_level: '', // <-- Add this
+    academic_year: '', // <-- Add this
   });
   const [enrollmentSummary, setEnrollmentSummary] = useState([]);
   const [examinationSummary, setExaminationSummary] = useState([]);
@@ -69,6 +72,21 @@ export default function Department() {
 
   useEffect(() => {
     fetchDepartmentUsers();
+  }, []);
+
+  // Fetch academic years from backend
+  useEffect(() => {
+    async function fetchAcademicYears() {
+      try {
+        const res = await axios.get(API.DEPT_USER_DISTINCT_YEARS, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        setAcademicYears(res.data.years || []);
+      } catch {
+        setAcademicYears([]);
+      }
+    }
+    fetchAcademicYears();
   }, []);
 
   // New user form change
@@ -298,6 +316,16 @@ export default function Department() {
                 <option value="UG">UG</option>
                 <option value="PG">PG</option>
               </select>
+              <select
+                className="p-2 border rounded"
+                value={filter.academic_year}
+                onChange={e => setFilter(f => ({ ...f, academic_year: e.target.value }))}
+              >
+                <option value="">All Academic Years</option>
+                {academicYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded"
                 onClick={async () => {
@@ -309,7 +337,8 @@ export default function Department() {
                           category: filter.category,
                           subcategory: filter.subcategory,
                           year: filter.yearSlot,
-                          degree_level: filter.degree_level, // <-- Pass degree_level
+                          degree_level: filter.degree_level,
+                          academic_year: filter.academic_year, // <-- Pass academic_year
                         },
                         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
                       });
@@ -322,7 +351,8 @@ export default function Department() {
                           category: filter.category,
                           subcategory: filter.subcategory,
                           year: filter.yearSlot,
-                          degree_level: filter.degree_level, // <-- Pass degree_level
+                          degree_level: filter.degree_level,
+                          academic_year: filter.academic_year, // <-- Pass academic_year
                         },
                         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
                       });

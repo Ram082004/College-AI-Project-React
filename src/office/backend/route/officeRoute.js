@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { officeLogin, forgotOfficePassword } = require('../controllers/officeController');
 const basicInformationController = require('../controllers/basicInformationController');
+const nonTeachingCtrl = require('../controllers/nonteachingcontrol');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -29,5 +30,12 @@ router.get('/office-details', basicInformationController.getOfficeDetails);
 router.post('/office-details', basicInformationController.saveOfficeDetails);
 router.get('/institution-address', basicInformationController.getInstitutionAddress);
 router.post('/institution-address', basicInformationController.saveInstitutionAddress);
+
+// Non-Teaching Staff routes
+router.get('/non-teaching-staff/dropdowns', nonTeachingCtrl.getNonTeachingDropdowns);
+router.get('/non-teaching-staff', nonTeachingCtrl.getAllNonTeachingStaff);
+router.post('/non-teaching-staff', nonTeachingCtrl.addNonTeachingStaff);
+router.put('/non-teaching-staff/update-group', nonTeachingCtrl.updateNonTeachingStaffGroup);
+// Add update/delete routes as needed
 
 module.exports = router;

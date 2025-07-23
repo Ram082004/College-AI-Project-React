@@ -20,6 +20,7 @@ export default function Office() {
     mobile: '',
     office_id: '',
     password: '',
+    academic_year: ''
   });
   const [newOfficeUser, setNewOfficeUser] = useState({
     name: '',
@@ -28,6 +29,7 @@ export default function Office() {
     mobile: '',
     office_id: '',
     password: '',
+    academic_year: ''
   });
   const [officeUserLoading, setOfficeUserLoading] = useState(false);
   const [showOfficeUserForm, setShowOfficeUserForm] = useState(false);
@@ -72,7 +74,7 @@ export default function Office() {
       if (res.data.success) {
         setGlobalMessage({ type: 'success', text: res.data.message });
         setNewOfficeUser({
-          name: '', username: '', email: '', mobile: '', office_id: '', password: '',
+          name: '', username: '', email: '', mobile: '', office_id: '', password: '', academic_year: ''
         });
         setShowOfficeUserForm(false);
         fetchOfficeUsers();
@@ -80,7 +82,11 @@ export default function Office() {
         setGlobalMessage({ type: 'error', text: res.data.message || 'Failed to add office user' });
       }
     } catch (err) {
-      setGlobalMessage({ type: 'error', text: 'An error occurred while adding the office user' });
+      if (err.response && err.response.status === 409) {
+        setGlobalMessage({ type: 'error', text: 'Username or Email already exists' });
+      } else {
+        setGlobalMessage({ type: 'error', text: 'An error occurred while adding the office user' });
+      }
     } finally {
       setOfficeUserLoading(false);
     }
@@ -96,6 +102,7 @@ export default function Office() {
       mobile: user.mobile || '',
       office_id: user.office_id || '',
       password: '',
+      academic_year: user.academic_year || ''
     });
   };
 
@@ -196,6 +203,7 @@ export default function Office() {
             <input name="mobile" value={newOfficeUser.mobile} onChange={handleNewOfficeUserChange} placeholder="Mobile" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="office_id" value={newOfficeUser.office_id} onChange={handleNewOfficeUserChange} placeholder="Office ID" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="password" value={newOfficeUser.password} onChange={handleNewOfficeUserChange} placeholder="Password" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
+            <input name="academic_year" value={newOfficeUser.academic_year} onChange={handleNewOfficeUserChange} placeholder="Academic Year" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
           </div>
           <div className="mt-6 flex gap-3 justify-end">
             <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform">Save</button>
@@ -214,6 +222,7 @@ export default function Office() {
               <th className="p-4 text-left font-bold tracking-wide">Office ID</th>
               <th className="p-4 text-left font-bold tracking-wide">Password</th> {/* Add this */}
               <th className="p-4 text-left font-bold tracking-wide">Locked</th>
+              <th className="p-4 text-left font-bold tracking-wide">Academic Year</th>
               <th className="p-4 text-left font-bold tracking-wide">Actions</th>
             </tr>
           </thead>
@@ -228,6 +237,7 @@ export default function Office() {
                   <td className="p-3"><input name="office_id" value={officeUserEditForm.office_id} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, office_id: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3"><input name="password" value={officeUserEditForm.password} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, password: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3">{user.locked ? 'Yes' : 'No'}</td>
+                  <td className="p-3"><input name="academic_year" value={officeUserEditForm.academic_year} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, academic_year: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
                   <td className="p-3 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleUpdateOfficeUser(user.id)}>Save</button>
                     <button className="px-4 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleOfficeUserCancelEdit}>Cancel</button>
@@ -242,6 +252,7 @@ export default function Office() {
                   <td className="p-4">{user.office_id}</td>
                   <td className="p-4">{user.password}</td> {/* Show password */}
                   <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
+                  <td className="p-4">{user.academic_year}</td>
                   <td className="p-4 flex gap-2">
                     <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleOfficeUserEdit(user)}>Edit</button>
                     <button className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeleteOfficeUser(user.id)}>Delete</button>

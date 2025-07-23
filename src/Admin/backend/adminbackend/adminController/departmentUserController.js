@@ -157,13 +157,14 @@ exports.getDistinctAcademicYears = async (req, res) => {
 
 exports.getStudentEnrollmentSummary = async (req, res) => {
   try {
-    const { department, category, subcategory, year, degree_level } = req.query;
+    const { department, category, subcategory, year, degree_level, academic_year } = req.query;
     let query = `
       SELECT 
         se.degree_level,
         c.name as category,
         sc.name as subcategory,
         se.year,
+        se.academic_year,
         SUM(CASE WHEN g.name = 'Male' THEN se.count ELSE 0 END) as male_count,
         SUM(CASE WHEN g.name = 'Female' THEN se.count ELSE 0 END) as female_count,
         SUM(CASE WHEN g.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
@@ -195,7 +196,11 @@ exports.getStudentEnrollmentSummary = async (req, res) => {
       query += ' AND se.degree_level = ?';
       params.push(degree_level);
     }
-    query += ' GROUP BY se.degree_level, se.year, c.name, sc.name ORDER BY se.degree_level, se.year, c.name, sc.name';
+    if (academic_year) {
+      query += ' AND se.academic_year = ?';
+      params.push(academic_year);
+    }
+    query += ' GROUP BY se.degree_level, se.year, se.academic_year, c.name, sc.name ORDER BY se.degree_level, se.year, se.academic_year, c.name, sc.name';
     const [rows] = await pool.query(query, params);
     res.json({ success: true, summary: rows });
   } catch (error) {

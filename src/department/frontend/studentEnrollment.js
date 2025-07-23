@@ -87,6 +87,8 @@ export default function StudentEnrollment({ userData }) {
   const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
   const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
   const [selectedAcademicYear, setSelectedAcademicYear] = useState(""); // NEW
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   useEffect(() => {
     if (!userData?.dept_id) return;
@@ -523,6 +525,72 @@ export default function StudentEnrollment({ userData }) {
     // ...other logic...
   }, [degreeLevel]);
 
+  // Reset to page 1 if studentDetails change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [studentDetails.length]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(studentDetails.length / recordsPerPage);
+  const paginatedDetails = studentDetails.slice(
+    (currentPage - 1) * recordsPerPage,
+    currentPage * recordsPerPage
+  );
+
+  // Pagination UI
+  function renderPagination() {
+    if (totalPages <= 1) return null;
+    const pages = [];
+    const maxPageButtons = 5;
+    let start = Math.max(1, currentPage - 2);
+    let end = Math.min(totalPages, start + maxPageButtons - 1);
+    if (end - start < maxPageButtons - 1) {
+      start = Math.max(1, end - maxPageButtons + 1);
+    }
+    if (start > 1) {
+      pages.push(
+        <button key={1} onClick={() => setCurrentPage(1)} className="px-3 py-2 rounded-lg border bg-white text-gray-700 font-semibold mx-1 hover:bg-blue-50">1</button>
+      );
+      if (start > 2) pages.push(<span key="start-ellipsis" className="mx-1 text-gray-400">...</span>);
+    }
+    for (let i = start; i <= end; i++) {
+      pages.push(
+        <button
+          key={i}
+          onClick={() => setCurrentPage(i)}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${i === currentPage ? 'bg-blue-700 text-white shadow' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          {i}
+        </button>
+      );
+    }
+    if (end < totalPages) {
+      if (end < totalPages - 1) pages.push(<span key="end-ellipsis" className="mx-1 text-gray-400">...</span>);
+      pages.push(
+        <button key={totalPages} onClick={() => setCurrentPage(totalPages)} className="px-3 py-2 rounded-lg border bg-white text-gray-700 font-semibold mx-1 hover:bg-blue-50">{totalPages}</button>
+      );
+    }
+    return (
+      <div className="flex items-center justify-center mt-8 mb-2">
+        <button
+          onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+          disabled={currentPage === 1}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          &lt; Back
+        </button>
+        {pages}
+        <button
+          onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-2 rounded-lg border font-semibold mx-1 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-blue-50'}`}
+        >
+          Next &gt;
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="space-y-10 max-w-7xl mx-auto px-4 py-8">
@@ -818,7 +886,7 @@ export default function StudentEnrollment({ userData }) {
                 <tr>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Academic Year</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Year</th>
-                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Degree Level</th> {/* Add this */}
+                  <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Degree Level</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Category</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Subcategory</th>
                   <th className="px-6 py-4 font-bold tracking-wider text-blue-700">Male</th>
@@ -827,12 +895,12 @@ export default function StudentEnrollment({ userData }) {
                 </tr>
               </thead>
               <tbody>
-                {studentDetails.length > 0 ? (
-                  studentDetails.map((detail, index) => (
+                {paginatedDetails.length > 0 ? (
+                  paginatedDetails.map((detail, index) => (
                     <tr key={index} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition">
                       <td className="px-6 py-4 font-medium">{detail.academic_year}</td>
                       <td className="px-6 py-4">{detail.year}</td>
-                      <td className="px-6 py-4">{detail.degree_level}</td> {/* Add this */}
+                      <td className="px-6 py-4">{detail.degree_level}</td>
                       <td className="px-6 py-4">{detail.category}</td>
                       <td className="px-6 py-4">{detail.subcategory}</td>
                       <td className="px-6 py-4">
@@ -866,6 +934,7 @@ export default function StudentEnrollment({ userData }) {
               </tbody>
             </table>
           </div>
+          {renderPagination()}
         </div>
       </div>
 

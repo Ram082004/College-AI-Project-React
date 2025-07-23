@@ -25,8 +25,36 @@ function SubmittedData() {
   const [submittedData, setSubmittedData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
-  const [filterUI, setFilterUI] = useState({ department: "", type: "", degree_level: "" });
-  const [filters, setFilters] = useState({ department: "", type: "", degree_level: "" });
+  const [filterUI, setFilterUI] = useState({ department: "", type: "", degree_level: "", academic_year: "" });
+  const [filters, setFilters] = useState({ department: "", type: "", degree_level: "", academic_year: "" });
+  const [academicYears, setAcademicYears] = useState([]);
+
+  // Fetch all data on mount (default)
+  useEffect(() => {
+    fetchSubmittedData({ department: "", type: "", degree_level: "", academic_year: "" });
+    // eslint-disable-next-line
+  }, []);
+
+  // Fetch on filter change (when Filter button is clicked)
+  useEffect(() => {
+    fetchSubmittedData();
+    // eslint-disable-next-line
+  }, [filters]);
+
+  // Fetch distinct academic years for dropdown
+  useEffect(() => {
+    async function fetchAcademicYears() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/submitted-data/distinct/years", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+        });
+        setAcademicYears(res.data.years || []);
+      } catch {
+        setAcademicYears([]);
+      }
+    }
+    fetchAcademicYears();
+  }, []);
 
   // Fetch all submitted data with filters
   const fetchSubmittedData = async (customFilters = filters) => {
@@ -36,6 +64,7 @@ function SubmittedData() {
       if (customFilters.department) params.department = customFilters.department;
       if (customFilters.type) params.type = customFilters.type;
       if (customFilters.degree_level) params.degree_level = customFilters.degree_level;
+      if (customFilters.academic_year) params.academic_year = customFilters.academic_year;
       const res = await axios.get(API.SUBMITTED_DATA_ALL, {
         params,
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
@@ -47,18 +76,6 @@ function SubmittedData() {
       setLoading(false);
     }
   };
-
-  // Fetch all data on mount (default)
-  useEffect(() => {
-    fetchSubmittedData({ department: "", type: "", degree_level: "" });
-    // eslint-disable-next-line
-  }, []);
-
-  // Fetch on filter change (when Filter button is clicked)
-  useEffect(() => {
-    fetchSubmittedData();
-    // eslint-disable-next-line
-  }, [filters]);
 
   // Lock/Unlock handler
   const handleLockToggle = async (id, locked) => {
@@ -143,6 +160,19 @@ function SubmittedData() {
               <option value="PG">PG</option>
             </select>
           </div>
+          <div className="flex-1">
+            <label className="block text-xs font-bold text-blue-700 mb-2 tracking-widest uppercase">Academic Year</label>
+            <select
+              value={filterUI.academic_year}
+              onChange={e => setFilterUI(f => ({ ...f, academic_year: e.target.value }))}
+              className="w-full px-4 py-3 rounded-xl border border-blue-200 bg-white shadow focus:ring-2 focus:ring-blue-400 text-base"
+            >
+              <option value="">All Academic Years</option>
+              {academicYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-2 md:ml-4">
             <button
               className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow hover:from-blue-700 hover:to-indigo-700 transition"
@@ -156,8 +186,8 @@ function SubmittedData() {
             <button
               className="w-full px-6 py-3 rounded-xl bg-gray-100 text-gray-700 font-bold shadow hover:bg-gray-200 transition"
               onClick={() => {
-                setFilterUI({ department: "", type: "", degree_level: "" });
-                setFilters({ department: "", type: "", degree_level: "" });
+                setFilterUI({ department: "", type: "", degree_level: "", academic_year: "" });
+                setFilters({ department: "", type: "", degree_level: "", academic_year: "" });
               }}
             >
               Reset
@@ -192,6 +222,7 @@ function SubmittedData() {
               <th className="p-4 text-left font-bold tracking-wide">Department</th>
               <th className="p-4 text-left font-bold tracking-wide">Name</th>
               <th className="p-4 text-left font-bold tracking-wide">Year</th>
+              <th className="p-4 text-left font-bold tracking-wide">Academic Year</th> {/* NEW COLUMN */}
               <th className="p-4 text-left font-bold tracking-wide">Degree Level</th>
               <th className="p-4 text-center font-bold tracking-wide" style={{ minWidth: 180 }}>Type</th>
               <th className="p-4 text-left font-bold tracking-wide">HOD</th>
@@ -206,6 +237,7 @@ function SubmittedData() {
                 <td className="p-4 font-semibold text-blue-900">{row.department}</td>
                 <td className="p-4">{row.name}</td>
                 <td className="p-4">{row.year}</td>
+                <td className="p-4">{row.academic_year || "-"}</td> {/* NEW COLUMN */}
                 <td className="p-4">{row.degree_level || "-"}</td>
                 <td className="p-4 text-center" style={{ minWidth: 180 }}>
                   <span className={`px-3 py-1 rounded-2xl text-xs font-bold ${row.type === "Student Examination"

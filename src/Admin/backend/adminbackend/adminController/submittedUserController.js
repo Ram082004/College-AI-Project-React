@@ -3,8 +3,8 @@ const { pool } = require('../../config/db');
 // Get all submitted data
 exports.getAllSubmittedData = async (req, res) => {
   try {
-    const { department, type, degree_level } = req.query;
-    let query = `SELECT id, dept_id, department, name, year, type, hod, degree_level, submitted_at, locked FROM submitted_data WHERE 1=1`;
+    const { department, type, degree_level, academic_year } = req.query;
+    let query = `SELECT id, dept_id, department, name, year, type, hod, degree_level, academic_year, submitted_at, locked FROM submitted_data WHERE 1=1`;
     const params = [];
     if (department) {
       query += ' AND department = ?';
@@ -17,6 +17,10 @@ exports.getAllSubmittedData = async (req, res) => {
     if (degree_level) {
       query += ' AND degree_level = ?';
       params.push(degree_level);
+    }
+    if (academic_year) {
+      query += ' AND academic_year = ?';
+      params.push(academic_year);
     }
     query += ' ORDER BY submitted_at DESC';
     const [rows] = await pool.query(query, params);
@@ -59,5 +63,15 @@ exports.deleteSubmittedData = async (req, res) => {
     res.json({ success: true, message: 'Submission deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to delete submission', error: error.message });
+  }
+};
+
+// Get distinct academic years
+exports.getDistinctSubmittedAcademicYears = async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT DISTINCT academic_year FROM submitted_data ORDER BY academic_year DESC');
+    res.json({ success: true, years: rows.map(r => r.academic_year) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch academic years' });
   }
 };
