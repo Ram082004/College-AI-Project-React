@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
+import { motion } from "framer-motion";
+import { RiBarChartBoxLine } from "react-icons/ri";
 
 const API_BASE = "http://localhost:5000/api/office";
 const API = {
@@ -8,7 +11,8 @@ const API = {
 };
 
 const DEFAULT_STAFF_TYPE = "Non Teaching Staff Excluding Lib & Phy Education";
-const GROUP_OPTIONS = ["Group B", "Group C", "Group D"];
+const GROUP_TABS = ["Group B", "Group C", "Group D"];
+
 
 function NonTeachingStaff() {
   // Pagination state
@@ -30,6 +34,32 @@ function NonTeachingStaff() {
   const [editLoading, setEditLoading] = useState(false);
   const [sanctionedStrength, setSanctionedStrength] = useState("");
 
+  const [groupCompletion, setGroupCompletion] = useState({ "Group B": false, "Group C": false, "Group D": false });
+  const [isLocked, setIsLocked] = useState(false);
+  const [showDeclaration, setShowDeclaration] = useState(false);
+  const [declarationAccepted, setDeclarationAccepted] = useState(false);
+  const [officeAcademicYear, setOfficeAcademicYear] = useState('');
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [breakdownSub, setBreakdownSub] = useState(null);
+  const [activeGroupTab, setActiveGroupTab] = useState(GROUP_TABS[0]);
+  const [officeId, setOfficeId] = useState("");
+  const [officeName, setOfficeName] = useState("");
+
+
+  // Fetch latest academic year from office_users table
+  useEffect(() => {
+    async function fetchAcademicYear() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
+      } catch {
+        setOfficeAcademicYear("");
+      }
+    }
+    fetchAcademicYear();
+  }, []);
+
+
   // Fetch dropdowns
   useEffect(() => {
     async function fetchDropdowns() {
@@ -45,7 +75,7 @@ function NonTeachingStaff() {
     fetchDropdowns();
   }, []);
 
-  // Fetch academic year from office users
+  // Fetch academic year and office user info from office users
   useEffect(() => {
     async function fetchOfficeUsers() {
       try {
@@ -54,9 +84,13 @@ function NonTeachingStaff() {
         });
         if (res.data.success && res.data.users.length > 0) {
           setAcademicYear(res.data.users[0].academic_year || "");
+          setOfficeId(res.data.users[0].office_id || "");
+          setOfficeName(res.data.users[0].name || "");
         }
       } catch {
         setAcademicYear("");
+        setOfficeId("");
+        setOfficeName("");
       }
     }
     fetchOfficeUsers();
@@ -365,17 +399,90 @@ function NonTeachingStaff() {
     );
   }
 
+  // Group completion status
+  const groupCompletionStatus = {
+    "Group B": filteredRecords.some(r => r.staff_group === "Group B"),
+    "Group C": filteredRecords.some(r => r.staff_group === "Group C"),
+    "Group D": filteredRecords.some(r => r.staff_group === "Group D"),
+  };
+
+  // Fetch completion status and lock status on load
+  useEffect(() => {
+    async function fetchStatus() {
+      const res = await axios.get(`${API_BASE}/non-teaching-staff/completion-status?academic_year=${academicYear}`);
+      setGroupCompletion(res.data);
+      const lockRes = await axios.get(`${API_BASE}/non-teaching-staff/is-locked?academic_year=${academicYear}`);
+      setIsLocked(lockRes.data.isLocked);
+    }
+    if (academicYear) fetchStatus();
+  }, [academicYear, globalMessage]);
+
+  // Helper: get breakdown rows for selected subcategory
+  function getSubcategoryBreakdown(subName) {
+    if (!dropdowns.categories.length || !dropdowns.genders.length) return [];
+    // Filter records for selected group and academic year
+    const groupRecords = filteredRecords.filter(
+      row => row.staff_group === activeGroupTab
+    );
+    return dropdowns.categories.map(cat => {
+      const male = groupRecords
+        .filter(r => r.subcategory === subName && r.category === cat.name && r.gender === "Male")
+        .reduce((sum, r) => sum + (Number(r.filled_count) || 0), 0);
+      const female = groupRecords
+        .filter(r => r.subcategory === subName && r.category === cat.name && r.gender === "Female")
+        .reduce((sum, r) => sum + (Number(r.filled_count) || 0), 0);
+      const transgender = groupRecords
+        .filter(r => r.subcategory === subName && r.category === cat.name && r.gender === "Transgender")
+        .reduce((sum, r) => sum + (Number(r.filled_count) || 0), 0);
+      return { category: cat.name, male, female, transgender };
+    });
+  }
+
   return (
-    <div className="max-w-7xl mx-auto bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl shadow-2xl p-8 md:p-12">
-      <h2 className="text-3xl font-extrabold text-cyan-700 mb-8 text-center tracking-tight">Non-Teaching Staff Enrollment</h2>
-      {globalMessage && (
-        <div className={`mb-6 px-6 py-3 rounded-xl font-semibold text-base shadow ${
-          globalMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
-          {globalMessage.text}
+    <div className="max-w-7xl mx-auto p-8 md:p-12"> 
+      <AcademicYearBadge year={officeAcademicYear} />
+      <h2 className="text-3xl font-extrabold text-cyan-700 mb-8 text-center tracking-tight">
+        Non-Teaching Staff Enrollment
+      </h2>
+
+      {/* Unique container for group badges and final submission */}
+      <div className="mb-10 p-6 rounded-2xl shadow-lg border border-green-100 bg-green-50 flex flex-col items-center">
+        <div className="flex gap-4 mb-4">
+          {GROUP_TABS.map(group => (
+            <span
+              key={group}
+              className={`px-4 py-2 rounded-xl font-bold transition-all duration-200 ${
+                groupCompletion[group]
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-200 text-gray-500"
+              }`}
+            >
+              {group}: {groupCompletion[group] ? "Completed" : "Incompleted"}
+            </span>
+          ))}
         </div>
-      )}
-      <form onSubmit={isEditMode ? handleUpdateEnrollment : handleEnrollment} className="space-y-10">
+        {/* Final Submission Button */}
+        {Object.values(groupCompletion).every(Boolean) && !isLocked && (
+          <button
+            className="mt-2 px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all"
+            onClick={() => setShowDeclaration(true)}
+            disabled={isLocked}
+          >
+            Final Submission
+          </button>
+        )}
+        {/* Success message */}
+        {globalMessage && globalMessage.type === "success" && (
+          <div className="mt-4 w-full p-4 bg-green-100 text-green-800 rounded-xl text-center font-bold text-lg shadow">
+            {globalMessage.text}
+          </div>
+        )}
+      </div>
+
+      <form
+        onSubmit={isEditMode ? handleUpdateEnrollment : handleEnrollment}
+        className="space-y-10"
+      >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Academic Year</label>
@@ -421,7 +528,7 @@ function NonTeachingStaff() {
               required
             >
               <option value="">Select Group</option>
-              {GROUP_OPTIONS.map(group => (
+              {GROUP_TABS.map(group => (
                 <option key={group} value={group}>{group}</option>
               ))}
             </select>
@@ -444,67 +551,93 @@ function NonTeachingStaff() {
         )}
 
         {/* Subcategory Panels */}
-        <div className="grid grid-cols-1 gap-10">
-          {dropdowns.subcategories.map(sub => (
-            <div key={sub.id} className="rounded-2xl shadow-md border border-blue-100 bg-white">
-              <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white px-6 py-3 rounded-t-2xl font-semibold text-lg tracking-wide">
-                {sub.name}
-              </div>
-              <div className="p-6 space-y-6">
-                {dropdowns.categories.map(cat => (
-                  <div key={cat.id} className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-5 transition-all duration-200">
-                    <div className="flex items-center justify-between mb-4">
-                      <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
-                        {cat.name}
-                      </h5>
+        <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
+          {['PwBD', 'Muslim Minority', 'Other Minority'].map(subName => {
+            const sub = dropdowns.subcategories.find(s => s.name === subName);
+            if (!sub) return null;
+            return (
+              <div
+                key={sub.id}
+                className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300 mx-auto"
+                style={{
+                  minWidth: 380,
+                  maxWidth: 360,
+                  padding: "0.5rem 0.5rem",
+                  marginBottom: 0,
+                }}
+              >
+                <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-4 py-2 flex items-center">
+                  <h4 className="font-semibold text-base">{sub.name}</h4>
+                </div>
+                <div className="p-4 space-y-4">
+                  {dropdowns.categories.map(cat => (
+                    <div
+                      key={cat.id}
+                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-3 transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors text-sm">
+                          {cat.name}
+                        </h5>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {dropdowns.genders.map(gender => (
+                          <div key={gender.id} className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-600">
+                              {gender.name}
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData?.[sub.id]?.[cat.id]?.[gender.id] ?? 0}
+                              onChange={e =>
+                                handleInputChange(sub.id, cat.id, gender.id, e.target.value)
+                              }
+                              className="w-full px-2 py-1.5 rounded-lg border border-gray-200 
+                                focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                bg-white shadow-sm transition-all duration-200
+                                hover:shadow group-hover:border-blue-200 text-xs"
+                              required
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-6">
-                      {dropdowns.genders.map(gender => (
-                        <div key={gender.id} className="space-y-2">
-                          <label className="block text-sm font-medium text-gray-600">{gender.name}</label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={formData?.[sub.id]?.[cat.id]?.[gender.id] ?? 0}
-                            onChange={e =>
-                              handleInputChange(sub.id, cat.id, gender.id, e.target.value)
-                            }
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm transition-all duration-200 hover:shadow group-hover:border-blue-200"
-                            required
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Button Group */}
         <div className="flex flex-col md:flex-row gap-6 justify-center items-center mt-10">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || isLocked}
             className={`w-full md:w-auto max-w-md py-4 px-8 rounded-xl font-semibold text-white text-lg shadow-lg shadow-blue-500/20
-              ${isEditMode
-                ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+              ${isLocked || loading
+                ? 'bg-gray-400 cursor-not-allowed'
+                : isEditMode
+                  ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
               } transition-all`}
           >
             {loading
               ? <span>{isEditMode ? "Saving..." : "Submitting..."}</span>
-              : isEditMode ? "Save Changes" : "Non-Teaching Staff Enrollment"}
+              : isEditMode ? "Save Changes" : "Submit"}
           </button>
           <button
             type="button"
-            disabled={editLoading || !staffGroup}
+            disabled={editLoading || !staffGroup || isLocked}
             onClick={handleEditEnrollment}
             className={`w-full md:w-auto max-w-md py-4 px-8 rounded-xl font-semibold text-white text-lg shadow-lg shadow-orange-500/20
-              bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 transition-all`}
+              ${isLocked || editLoading || !staffGroup
+                ? 'bg-gray-400 cursor-not-allowed'
+                : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+              } transition-all`}
           >
-            {editLoading ? "Loading..." : "Edit Enrollment"}
+            {editLoading ? "Loading..." : "Edit"}
           </button>
         </div>
       </form>
@@ -609,6 +742,237 @@ function NonTeachingStaff() {
           </table>
         </div>
       </div>
+
+      {/* Enrollment Summary Title and Group Switch Tabs */}
+      <div className="mt-12 flex flex-col items-center mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Enrollment Summary (Non-Teaching Staff)
+        </h3>
+        <div className="flex justify-center mt-2">
+          <div className="flex space-x-2 bg-gray-200 p-1 rounded-lg">
+            {GROUP_TABS.map(group => (
+              <button
+                key={group}
+                onClick={() => setActiveGroupTab(group)}
+                className={`px-6 py-2 font-semibold rounded-md transition-colors ${
+                  activeGroupTab === group
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                {group}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Minority Summary Containers for selected group */}
+      <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
+        {['PwBD', 'Muslim Minority', 'Other Minority'].map(subName => {
+          const sub = dropdowns.subcategories.find(s => s.name === subName);
+          if (!sub) return null;
+          // Filter records for selected group and academic year
+          const groupRecords = filteredRecords.filter(
+            row => row.staff_group === activeGroupTab
+          );
+          // Aggregate counts for each subcategory
+          const summary = { male: 0, female: 0, transgender: 0 };
+          groupRecords.forEach(row => {
+            if (row.subcategory === subName) {
+              if (row.gender === 'Male') summary.male += row.filled_count || 0;
+              if (row.gender === 'Female') summary.female += row.filled_count || 0;
+              if (row.gender === 'Transgender') summary.transgender += row.filled_count || 0;
+            }
+          });
+          return (
+            <div
+              key={sub.id}
+              className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mx-auto cursor-pointer"
+              style={{
+                minWidth: 380,
+                maxWidth: 360,
+                marginBottom: 0,
+              }}
+              onClick={() => {
+                setBreakdownSub(subName);
+                setShowBreakdown(true);
+              }}
+            >
+              <h4 className="font-bold text-lg text-blue-800 mb-4">{subName}</h4>
+              <div className="flex justify-around text-center">
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">{summary.male}</p>
+                  <p className="text-sm text-gray-500">Male</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-pink-600">{summary.female}</p>
+                  <p className="text-sm text-gray-500">Female</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-purple-600">{summary.transgender}</p>
+                  <p className="text-sm text-gray-500">Transgender</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Breakdown Popup */}
+      {showBreakdown && breakdownSub && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowBreakdown(false)}
+          style={{ transition: 'all 0.3s' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 40 }}
+            className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-0 max-w-xl w-full mx-4 border border-blue-100 relative"
+            onClick={e => e.stopPropagation()}
+            style={{
+              boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
+              border: '1px solid rgba(255,255,255,0.18)'
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <RiBarChartBoxLine className="text-3xl text-white" />
+                <h3 className="text-xl font-bold text-white">
+                  {breakdownSub} - {academicYear} Breakdown
+                </h3>
+              </div>
+              <button
+                className="text-white text-2xl hover:text-blue-200 transition"
+                onClick={() => setShowBreakdown(false)}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
+            {/* Table */}
+            <div className="px-8 py-6">
+              <table className="min-w-full text-base rounded-xl overflow-hidden shadow bg-white/90">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-100 to-indigo-100">
+                    <th className="px-4 py-2 text-left font-bold">Category</th>
+                    <th className="px-4 py-2 font-bold text-blue-700">Male</th>
+                    <th className="px-4 py-2 font-bold text-pink-700">Female</th>
+                    <th className="px-4 py-2 font-bold text-purple-700">Transgender</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rows = getSubcategoryBreakdown(breakdownSub);
+                    const hasData = rows.some(r => Number(r.male) > 0 || Number(r.female) > 0 || Number(r.transgender) > 0);
+                    if (!hasData) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-gray-400">
+                            <RiBarChartBoxLine className="mx-auto text-4xl mb-2 text-blue-200" />
+                            <span>No data available for this subcategory and year.</span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return rows.map(row => (
+                      <tr key={row.category} className="hover:bg-blue-50 transition">
+                        <td className="px-4 py-2 font-semibold">{row.category}</td>
+                        <td className="px-4 py-2 text-blue-700 font-bold">{row.male}</td>
+                        <td className="px-4 py-2 text-pink-700 font-bold">{row.female}</td>
+                        <td className="px-4 py-2 text-purple-700 font-bold">{row.transgender}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-8 pb-6">
+              <button
+                className="w-full py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
+                onClick={() => setShowBreakdown(false)}
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Declaration Modal */}
+      {showDeclaration && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full mx-4">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-green-100 rounded-2xl mx-auto flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              </div>
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Declaration Form
+              </h3>
+              <p className="text-gray-500 mt-2">Please review and confirm your submission</p>
+            </div>
+            {/* Declaration Statement */}
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 mb-6 border border-blue-100">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 mt-1">
+                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900 mb-2">Declaration Statement</h4>
+                  <p className="text-gray-600 leading-relaxed">
+                    I hereby declare that the Non-Teaching Staff data for academic year <span className="font-semibold text-blue-600">{academicYear}</span> is true and correct to the best of my knowledge and belief. I understand that any discrepancy found later may lead to necessary action as per institutional policy.
+                  </p>
+                </div>
+              </div>
+            </div>
+            {/* Accept Checkbox */}
+            <label className="flex items-center mb-6">
+              <input
+                type="checkbox"
+                checked={declarationAccepted}
+                onChange={e => setDeclarationAccepted(e.target.checked)}
+                className="mr-2"
+              />
+              I accept the declaration
+            </label>
+            {/* Action Buttons */}
+            <div className="flex gap-4 justify-end">
+              <button
+                className="px-6 py-2 bg-blue-700 text-white rounded-lg font-bold"
+                disabled={!declarationAccepted}
+                onClick={async () => {
+                  await axios.post(`${API_BASE}/non-teaching-staff/final-submit`, {
+                    academic_year: academicYear,
+                    type: "Non-Teaching Staff",
+                    status: "Completed",
+                    office_id: officeId,
+                    name: officeName
+                  });
+                  setShowDeclaration(false);
+                  setIsLocked(true);
+                  setGlobalMessage({ type: "success", text: "Final submission completed." });
+                  setTimeout(() => setGlobalMessage(null), 3000);
+                }}
+              >
+                Submit
+              </button>
+              <button
+                className="px-6 py-2 bg-gray-200 rounded-lg font-bold"
+                onClick={() => setShowDeclaration(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

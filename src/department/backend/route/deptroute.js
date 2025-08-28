@@ -6,7 +6,9 @@ const deptexamination = require('../controllers/deptexamination');
 const {
   departmentLogin,
   forgotDepartmentPassword,
-  getHodName
+  getHodName,
+  verifyDepartmentOtp,
+  resetDepartmentPassword
 } = require('../controllers/deptcontroller');
 const { pool } = require('../../../Admin/backend/config/db');
 
@@ -19,20 +21,16 @@ router.use((req, res, next) => {
 // ==================== AUTH ROUTES ====================
 router.post('/department-login', departmentLogin);
 router.post('/department-forgot-password', forgotDepartmentPassword);
+router.post('/department-verify-otp', verifyDepartmentOtp);
+router.post('/department-reset-password', resetDepartmentPassword);
 
 // ==================== STUDENT ENROLLMENT ROUTES ====================
 // Add enrollment summary data
 router.post('/enrollment-summary', deptenrollment.addEnrollmentData);
 // Get student enrollment details for a department
 router.get('/student-enrollment/department/:deptId', deptenrollment.getStudentDetails);
-// Update enrollment status for students
-router.post('/student-enrollment/update-status', deptenrollment.updateEnrollmentStatus);
 // Submit enrollment declaration
 router.post('/student-enrollment/submit-declaration', deptenrollment.submitEnrollmentDeclaration);
-// Get year-wise enrollment statuses
-router.get('/student-enrollment/year-statuses/:deptId', deptenrollment.getEnrollmentYearStatuses);
-// Get year-wise enrollment completion status
-router.get('/student-enrollment/year-completion-status/:deptId', deptenrollment.getEnrollmentYearCompletionStatus);
 // Update enrollment data
 router.put('/student-enrollment/update', deptenrollment.updateEnrollmentData);
 // Lock enrollment declaration
@@ -60,8 +58,6 @@ router.post('/student-examination/update-status', deptexamination.updateExaminat
 router.post('/student-examination/submit-declaration', deptexamination.submitExaminationDeclaration);
 // Get year-wise examination statuses
 router.get('/student-examination/year-statuses/:deptId', deptexamination.getExaminationYearStatuses);
-// Get year-wise examination completion status
-router.get('/student-examination/year-completion-status/:deptId', deptexamination.getExaminationYearCompletionStatus);
 // Update examination data
 router.put('/student-examination/update', deptexamination.updateExaminationData);
 // Lock examination declaration
@@ -89,5 +85,7 @@ router.get('/department-user/academic-year/:deptId', async (req, res) => {
 
 // Get HOD name for a department
 router.get('/department-user/hod/:deptId', getHodName);
+// Get allowed degree levels for a department
+router.get('/degree-levels/:deptId', deptenrollment.getAllowedDegreeLevels);
 
 module.exports = router;

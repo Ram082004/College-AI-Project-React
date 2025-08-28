@@ -1,6 +1,7 @@
 const { pool } = require('../../../Admin/backend/config/db');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const bcrypt = require('bcrypt');
 
 // Create email transporter function
 const createTransporter = () => {
@@ -19,137 +20,93 @@ const createTransporter = () => {
   });
 };
 
-// Department forgot password controller
+// Department forgot password controller (OTP only)
 exports.forgotDepartmentPassword = async (req, res) => {
-  console.log('Forgot password request received:', req.body); // Debug log
-
   try {
-    const { username } = req.body;
-
-    // Validate username
-    if (!username) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username is required',
-      });
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+    const [rows] = await pool.query('SELECT * FROM department_users WHERE email = ?', [email]);
+    const user = rows[0];
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found' });
     }
 
-    // Find user in database
-    const [rows] = await pool.query(
-      'SELECT * FROM department_users WHERE username = ?',
-      [username]
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiryTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    // Save OTP to DB (implement your own password_resets table)
+    await pool.query(
+      'INSERT INTO password_resets (email, otp, expires_at, used) VALUES (?, ?, ?, 0)',
+      [user.email, otp, expiryTime]
     );
 
-    if (rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No account found with this username',
-      });
-    }
+    // Mask email for UI
+    const maskedEmail = user.email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
 
-    const user = rows[0];
-
-    try {
-      // Create transporter
-      const transporter = createTransporter();
-
-      // Send password recovery email
-      await transporter.sendMail({
-        from: `"AISHE Portal" <${process.env.EMAIL_USER}>`,
-        to: user.email,
-        subject: 'Your Password Recovery',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #2563eb;">Password Recovery</h2>
-            <p>Hello ${user.name},</p>
-            <p>As requested, here is your password for the AISHE Department Portal:</p>
-            <div style="background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0;">
-              <p style="margin: 0; font-size: 18px; color: #1e40af;">${user.password}</p>
+    // Send OTP email
+    const transporter = createTransporter();
+    // Send OTP with GASCKK branding
+    await transporter.sendMail({
+      from: `"GASCKK AISHE PORTAL" <${process.env.EMAIL_USER}>`,
+      to: user.email,
+      subject: 'GASCKK AISHE PORTAL - Password Reset Code',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;padding:20px;background:#f7fafc;border-radius:8px;">
+          <header style="text-align:center;margin-bottom:18px;">
+            <h1 style="margin:0;color:#0b3b64">GASCKK AISHE PORTAL</h1>
+            <p style="margin:4px 0 0;color:#475569;font-size:14px">Password reset request</p>
+          </header>
+          <main style="background:white;padding:20px;border-radius:6px;text-align:center;">
+            <p style="color:#334155;margin:0 0 12px;">Use the code below to reset your password. It expires in 10 minutes.</p>
+            <div style="display:inline-block;padding:18px 28px;border-radius:8px;background:#eef2ff;color:#1e3a8a;font-size:28px;letter-spacing:6px;">
+              ${otp}
             </div>
-            <p>For security reasons, we recommend changing your password after logging in.</p>
-            <p>If you didn't request this, please contact the administrator immediately.</p>
-            <p style="color: #6b7280; font-size: 0.875rem; margin-top: 20px;">
-              This is an automated message, please do not reply.
-            </p>
-          </div>
-        `,
-      });
-
-      // Send success response
-      res.json({
-        success: true,
-        message: 'Password has been sent to your email',
-      });
-    } catch (emailError) {
-      console.error('Email sending error:', emailError);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to send password recovery email',
-      });
-    }
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to process password recovery request',
+            <p style="color:#64748b;margin-top:14px;font-size:13px;">If you didn't request this, ignore this email or contact admin.</p>
+          </main>
+          <footer style="text-align:center;margin-top:14px;font-size:12px;color:#94a3b8;">
+            © GASCKK AISHE PORTAL
+          </footer>
+        </div>
+      `
     });
+
+    res.json({
+      success: true,
+      message: 'Reset code sent successfully',
+      maskedEmail
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to send reset code' });
   }
 };
 
 // Department login controller
 exports.departmentLogin = async (req, res) => {
-  console.log('Login request received:', { ...req.body, password: '***' }); // Debug log
-
   try {
     const { username, password } = req.body;
-
-    // Validate input
     if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username and password are required',
-      });
+      return res.status(400).json({ success: false, message: 'Username and password are required' });
     }
-
-    // Find user
-    const [rows] = await pool.query(
-      'SELECT * FROM department_users WHERE username = ?',
-      [username]
-    );
-
+    const [rows] = await pool.query('SELECT * FROM department_users WHERE username = ?', [username]);
     if (rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password',
-      });
+      return res.status(404).json({ success: false, message: 'No account found' });
     }
-
     const user = rows[0];
-
-    // Check if locked
     if (user.locked) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account locked by Nodel',
-      });
+      return res.status(403).json({ success: false, message: 'Account locked by Nodel' });
     }
-
-    // Verify password
-    if (password !== user.password) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid username or password',
-      });
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
+      return res.status(401).json({ success: false, message: 'Invalid username or password' });
     }
-
-    // Generate token
     const token = jwt.sign(
       { id: user.id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-
-    // Send success response
     res.json({
       success: true,
       message: 'Login successful',
@@ -160,15 +117,12 @@ exports.departmentLogin = async (req, res) => {
         email: user.email,
         department: user.department,
         dept_id: user.dept_id,
-        name: user.name, // <-- This line is correct
+        name: user.name,
+        academic_year: user.academic_year,
       },
     });
   } catch (error) {
-    console.error('Department login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'An error occurred during login',
-    });
+    res.status(500).json({ success: false, message: 'An error occurred during login' });
   }
 };
 
@@ -252,5 +206,125 @@ exports.getExaminationYearStatuses = async (req, res) => {
     res.json({ success: true, statuses: statusMap, academicYear });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
+  }
+};
+
+// Verify Department OTP
+exports.verifyDepartmentOtp = async (req, res) => {
+  try {
+    const { otp, email } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+    }
+
+    // normalize inputs
+    const emailTrim = String(email).trim().toLowerCase();
+    const otpTrim = String(otp).trim();
+
+    // ensure user exists
+    const [userRows] = await pool.query('SELECT * FROM department_users WHERE email = ?', [emailTrim]);
+    const user = userRows[0];
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found' });
+    }
+
+    // Check for valid unused OTP but DO NOT mark it used here
+    const [resets] = await pool.query(
+      'SELECT * FROM password_resets WHERE email = ? AND otp = ? AND expires_at > NOW() AND used = 0',
+      [emailTrim, otpTrim]
+    );
+
+    if (resets.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    // OTP is valid — allow frontend to proceed to reset step
+    res.json({ success: true, message: 'OTP verified successfully' });
+  } catch (error) {
+    console.error('verifyDepartmentOtp error:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
+  }
+};
+
+// Reset Department Password
+exports.resetDepartmentPassword = async (req, res) => {
+  try {
+    console.log('Reset password request body:', req.body);
+    let { email, otp, newPassword } = req.body;
+
+    // sanitize inputs
+    email = email ? String(email).trim().toLowerCase() : '';
+    otp = otp ? String(otp).trim() : '';
+    newPassword = newPassword ? String(newPassword) : '';
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    }
+
+    const [userRows] = await pool.query('SELECT * FROM department_users WHERE email = ?', [email]);
+    const user = userRows[0];
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'No account found' });
+    }
+
+    // Debug
+    const [allOtps] = await pool.query('SELECT id, email, otp, expires_at, used, created_at FROM password_resets WHERE email = ?', [email]);
+    console.log('All OTPs for email:', allOtps);
+
+    const [resets] = await pool.query(
+      'SELECT * FROM password_resets WHERE email = ? AND otp = ? AND expires_at > NOW() AND used = 0',
+      [email, otp]
+    );
+    console.log('Matching OTP rows:', resets);
+
+    if (resets.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    // Hash and save password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE department_users SET password = ? WHERE email = ?', [hashedPassword, email]);
+
+    // Mark OTP used
+    const resetId = resets[0].id;
+    await pool.query('UPDATE password_resets SET used = 1 WHERE id = ?', [resetId]);
+
+    // Send confirmation including username + new password (per request)
+    const transporter = createTransporter();
+    // Nicer confirmation and include username + new password
+    await transporter.sendMail({
+      from: `"GASCKK AISHE PORTAL" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'GASCKK AISHE PORTAL - Password Changed',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;padding:20px;background:#f7fafc;border-radius:8px;">
+          <header style="text-align:center;margin-bottom:18px;">
+            <h1 style="margin:0;color:#0b3b64">GASCKK AISHE PORTAL</h1>
+            <p style="margin:4px 0 0;color:#475569;font-size:14px">Password change confirmation</p>
+          </header>
+          <main style="background:white;padding:20px;border-radius:6px;">
+            <p style="color:#334155;">Hello ${user.name || user.username || ''},</p>
+            <p style="color:#334155;">Your password has been changed successfully.</p>
+            <div style="background:#f1f5f9;padding:12px;border-radius:6px;margin:12px 0;">
+              <p style="margin:0;font-size:13px"><strong>Username:</strong> ${user.username || ''}</p>
+              <p style="margin:0;font-size:13px"><strong>New Password:</strong> ${newPassword}</p>
+            </div>
+            <p style="color:#64748b;font-size:13px;">If you did not request this change, contact the administrator immediately.</p>
+          </main>
+          <footer style="text-align:center;margin-top:14px;font-size:12px;color:#94a3b8;">
+            © GASCKK AISHE PORTAL
+          </footer>
+        </div>
+      `
+    });
+
+    res.json({ success: true, message: 'Password reset successfully. Confirmation email sent.' });
+  } catch (error) {
+    console.error('resetDepartmentPassword error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
 };

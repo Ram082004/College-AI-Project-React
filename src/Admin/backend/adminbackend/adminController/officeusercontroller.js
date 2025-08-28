@@ -1,4 +1,5 @@
 const { pool } = require('../../config/db');
+const bcrypt = require('bcrypt');
 
 // Fetch all office users
 exports.getAllOfficeUsers = async (req, res) => {
@@ -26,9 +27,10 @@ exports.addOfficeUser = async (req, res) => {
     if (exists.length > 0) {
       return res.status(409).json({ success: false, message: 'Username or Email already exists' });
     }
+    const hashedPassword = await bcrypt.hash(password, 10); // Hash password
     const [result] = await pool.query(
       'INSERT INTO office_users (name, username, email, mobile, office_id, password, academic_year, locked) VALUES (?, ?, ?, ?, ?, ?, ?, 0)',
-      [name, username, email, mobile, office_id, password, academic_year]
+      [name, username, email, mobile, office_id, hashedPassword, academic_year]
     );
     if (result.affectedRows > 0) {
       res.json({ success: true, message: 'Office user added successfully' });
@@ -60,9 +62,10 @@ exports.updateOfficeUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Username or Email already exists' });
     }
     if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10); // Hash password
       await pool.query(
         'UPDATE office_users SET name = ?, username = ?, email = ?, mobile = ?, office_id = ?, password = ?, academic_year = ? WHERE id = ?',
-        [name, username, email, mobile, office_id, password, academic_year, id]
+        [name, username, email, mobile, office_id, hashedPassword, academic_year, id]
       );
     } else {
       await pool.query(
@@ -117,3 +120,36 @@ exports.toggleLockOfficeUser = async (req, res) => {
     });
   }
 };
+
+// Get distinct academic years
+exports.getDistinctAcademicYears = async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT DISTINCT academic_year FROM office_users ORDER BY academic_year DESC');
+    res.json({ success: true, years: rows.map(r => r.academic_year) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to fetch academic years', error: error.message });
+  }
+};
+
+// Forgot office password
+// exports.forgotOfficePassword = async (req, res) => {
+//   try {
+//     const { username, email } = req.body;
+//     let user;
+//     if (username) {
+//       const [rows] = await pool.query('SELECT * FROM office_users WHERE username = ?', [username]);
+//       user = rows[0];
+//     } else if (email) {
+//       const [rows] = await pool.query('SELECT * FROM office_users WHERE email = ?', [email]);
+//       user = rows[0];
+//     } else {
+//       return res.status(400).json({ success: false, message: 'Email is required' });
+//     }
+//     if (!user) {
+//       return res.status(404).json({ success: false, message: 'No account found' });
+//     }
+//     // ...existing code to send password...
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: 'Failed to send password' });
+//   }
+// };

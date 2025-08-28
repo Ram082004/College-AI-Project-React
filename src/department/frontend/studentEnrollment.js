@@ -6,6 +6,7 @@ import {
   RiCheckboxCircleLine
 } from 'react-icons/ri';
 import axios from 'axios';
+import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge';
 
 const API_BASE = 'http://localhost:5000/api';
 const API = {
@@ -52,12 +53,15 @@ const subcategoryInfo = {
 };
 
 export default function StudentEnrollment({ userData }) {
-  const [degreeLevel, setDegreeLevel] = useState('UG'); // UG by default
-
-  const getYearSlots = () => (degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year']);
-  const yearSlots = getYearSlots();
-
+  const [degreeLevel, setDegreeLevel] = useState('PG');
+  const [allowedDegreeLevels, setAllowedDegreeLevels] = useState(['UG']);
   const [academicYears, setAcademicYears] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState(""); // <-- must be before any use
+  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
+  const [hodName, setHodName] = useState('');
+  const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
+  const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
+  const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
   const [currentYearSlot, setCurrentYearSlot] = useState(0);
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
   const [enrollmentData, setEnrollmentData] = useState(() => {
@@ -80,25 +84,63 @@ export default function StudentEnrollment({ userData }) {
   const [showDeclaration, setShowDeclaration] = useState(false);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
-  const [statusAcademicYear, setStatusAcademicYear] = useState('');
-  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
-  const [hodName, setHodName] = useState('');
-  const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
-  const [loadingYearData, setLoadingYearData] = useState(false); // NEW: loading for year fetch
-  const [isUpdateMode, setIsUpdateMode] = useState(false); // NEW: track update mode
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState(""); // NEW
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
+  const [summaryData, setSummaryData] = useState({});
+  const [summaryYear, setSummaryYear] = useState('I Year'); // New state for active tab
+  const [editingSubcategory, setEditingSubcategory] = useState(null); // subcategory name
+  const [editingYear, setEditingYear] = useState(null); // year string
+  // Backup to restore enrollment data when Cancel is clicked during edit
+  const [backupEnrollmentData, setBackupEnrollmentData] = useState(null);
+
+  useEffect(() => {
+    const yearSlots = getYearSlots(); // Get year slots based on degree level
+    const initialSummary = {};
+
+    // Initialize the structure for each year slot
+    yearSlots.forEach(year => {
+      initialSummary[year] = {
+        'PwBD': { male: 0, female: 0, transgender: 0 },
+        'Muslim Minority': { male: 0, female: 0, transgender: 0 },
+        'Other Minority': { male: 0, female: 0, transgender: 0 }
+      };
+    });
+
+    // Aggregate data from studentDetails
+    studentDetails
+      .filter(detail => detail.degree_level === degreeLevel)
+      .forEach(detail => {
+        const year = detail.year; // Use the 'year' property directly
+        if (initialSummary[year] && initialSummary[year][detail.subcategory]) {
+          initialSummary[year][detail.subcategory].male += parseInt(detail.male_count, 10) || 0;
+          initialSummary[year][detail.subcategory].female += parseInt(detail.female_count, 10) || 0;
+          initialSummary[year][detail.subcategory].transgender += parseInt(detail.transgender_count, 10) || 0;
+        }
+      });
+
+    setSummaryData(initialSummary);
+  }, [studentDetails, degreeLevel]);
+
+  // Define getYearSlots function
+  const getYearSlots = () => {
+    return degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year'];
+  };
+
+  // Define yearSlots variable
+  const yearSlots = getYearSlots();
+
+  // Modern badge-style year completion status UI (like studentExamination.js)
+
+  // --- To use this UI, insert {renderYearCompletionStatus()} in your main JSX where you want the year status to appear ---
 
   useEffect(() => {
     if (!userData?.dept_id) return;
-    fetchAcademicYears();
-    fetchStudentDetails();
-    fetchYearStatuses();
-    fetchYearCompletionStatus();
-    fetchHodName(); // <-- Add this line
+  fetchAcademicYears();
+  fetchStudentDetails();
+ 
+  fetchHodName();
     // eslint-disable-next-line
-  }, [userData]);
+  }, [userData, degreeLevel]);
 
   // Set default academic year when academicYears change
   useEffect(() => {
@@ -115,10 +157,18 @@ export default function StudentEnrollment({ userData }) {
         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
       });
       if (res.data.success) {
-        // Filter by selectedAcademicYear
         setStudentDetails(res.data.details.filter(d => d.academic_year === selectedAcademicYear));
+        // Map year to status
+        const yearStatus = {};
+        res.data.details.forEach(detail => {
+          if (detail.academic_year === selectedAcademicYear) {
+            yearStatus[detail.year] = detail.status; // "Completed" or "Incompleted"
+          }
+        });
+        setYearCompletionStatus(yearStatus);
       } else {
         setStudentDetails([]);
+        setYearCompletionStatus({});
       }
     } catch {
       setStudentDetails([]);
@@ -127,8 +177,8 @@ export default function StudentEnrollment({ userData }) {
 
   // Re-fetch student details when academic year changes
   useEffect(() => {
-    fetchStudentDetails();
-    // ...fetch other year-dependent data if needed...
+  fetchStudentDetails();
+  // ...fetch other year-dependent data if needed...
   }, [selectedAcademicYear]);
 
   // Fetch enrollment data for the selected year slot
@@ -199,57 +249,7 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
-  const fetchYearStatuses = async () => {
-    try {
-      const res = await axios.get(
-        `http://localhost:5000/api/student-enrollment/year-statuses/${userData.dept_id}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
-      if (res.data.success) {
-        setStatusAcademicYear(res.data.academicYear || '');
-      } else {
-        setStatusAcademicYear('');
-      }
-    } catch {
-      setStatusAcademicYear('');
-    }
-  };
 
-  // Fetch year completion status (call this in useEffect or after data changes)
-  const fetchYearCompletionStatus = async () => {
-    try {
-      const yearsParam = encodeURIComponent(yearSlots.join(','));
-      const res = await fetch(
-        `${API_BASE}/student-enrollment/year-completion-status/${userData.dept_id}?years=${yearsParam}&degree_level=${degreeLevel}`
-      );
-      if (!res.ok) {
-        // Try to parse error JSON, or fallback to a generic error
-        let errorMsg = 'Failed to fetch year completion status';
-        try {
-          const errData = await res.json();
-          errorMsg = errData.message || errorMsg;
-        } catch {
-          // If not JSON, do nothing
-        }
-        setGlobalMessage({ type: 'error', text: errorMsg });
-        setYearCompletionStatus({});
-        setStatusAcademicYear('');
-        return;
-      }
-      const data = await res.json();
-      if (data.success) {
-        setYearCompletionStatus(data.statuses);
-        setStatusAcademicYear(data.academicYear);
-      } else {
-        setYearCompletionStatus({});
-        setStatusAcademicYear('');
-      }
-    } catch (err) {
-      setGlobalMessage({ type: 'error', text: 'Network error fetching year completion status' });
-      setYearCompletionStatus({});
-      setStatusAcademicYear('');
-    }
-  };
 
   const fetchHodName = async () => {
     try {
@@ -263,116 +263,31 @@ export default function StudentEnrollment({ userData }) {
     }
   };
 
-  // Check if declaration is locked for the current degree level
+  // Check lock status for the current academic year and degree level
   const checkDeclarationLockStatus = async () => {
+    if (!userData?.dept_id || !selectedAcademicYear) return;
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/student-enrollment/declaration-lock-status`,
-        {
-          params: {
-            deptId: userData?.dept_id,
-            year: yearSlots.join(', '),
-            type: 'Student Enrollment',
-            degree_level: degreeLevel,
-            academic_year: selectedAcademicYear // <-- Add this
-          },
-          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      const res = await axios.get('http://localhost:5000/api/student-enrollment/declaration-lock-status', {
+        params: {
+          deptId: userData.dept_id,
+          year: yearSlots.join(', '), // <-- add space after comma
+          type: 'Student Enrollment',
+          degree_level: degreeLevel,
+          academic_year: selectedAcademicYear
         }
-      );
+      });
       setIsDeclarationLocked(res.data.locked);
     } catch {
       setIsDeclarationLocked(false);
     }
   };
 
-  // Re-check lock status when degreeLevel changes
+  // Call on mount and when dependencies change
   useEffect(() => {
-    if (userData?.dept_id) {
-      checkDeclarationLockStatus();
-    }
-    // eslint-disable-next-line
-  }, [userData, degreeLevel]);
+    checkDeclarationLockStatus();
+  }, [userData, degreeLevel, selectedAcademicYear]);
 
-  const handleEnrollmentSubmit = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    setSubmitting(true);
-    try {
-      if (!selectedAcademicYear) {
-        setGlobalMessage({ type: 'error', text: 'Academic year not found' });
-        setSubmitting(false);
-        return;
-      }
-      const enrollmentRecords = [];
-      Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
-        Object.entries(categoryMaster).forEach(([catId, catName]) => {
-          Object.entries(genderMaster).forEach(([genderId, genderName]) => {
-            const count = enrollmentData[subcatName][catName][genderName];
-            if (count > 0) {
-              enrollmentRecords.push({
-                academic_year: selectedAcademicYear,
-                dept_id: userData?.dept_id,
-                category_id: parseInt(catId),
-                subcategory_id: parseInt(subcatId),
-                gender_id: parseInt(genderId),
-                count: parseInt(count),
-                year: yearSlots[currentYearSlot],
-                degree_level: degreeLevel // <-- Add this
-              });
-            }
-          });
-        });
-      });
-      const response = await axios.post(
-        API.ENROLLMENT,
-        { records: enrollmentRecords },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      if (response.data.success) {
-        setGlobalMessage({ type: 'success', text: 'Enrollment data added successfully' });
-        // Reset form fields to zero after submit
-        setEnrollmentData(() => {
-          const data = {};
-          subcategories.forEach(sub => {
-            data[sub] = {};
-            categories.forEach(cat => {
-              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-            });
-          });
-          return data;
-        });
-        fetchStudentDetails();
-        // Optionally clear form or advance year
-      }
-    } catch (error) {
-      setGlobalMessage({ type: 'error', text: error.response?.data?.message || 'Failed to add enrollment data' });
-    } finally {
-      setSubmitting(false);
-      setTimeout(() => setGlobalMessage(null), 3000);
-    }
-  };
-
-  const updateEnrollmentStatus = async (status) => {
-    try {
-      await axios.post(
-        'http://localhost:5000/api/student-enrollment/update-status',
-        {
-          dept_id: userData?.dept_id,
-          year: yearSlots[currentYearSlot],
-          status
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
-      fetchYearStatuses();
-    } catch (err) {
-      setGlobalMessage({ type: 'error', text: 'Failed to update status' });
-    }
-  };
-
+  // After successful final submission, call checkDeclarationLockStatus() again
   const handleFinalDeclarationSubmit = async () => {
     if (!hodName) {
       setGlobalMessage({ type: 'error', text: 'HOD name is missing. Please contact admin.' });
@@ -391,7 +306,7 @@ export default function StudentEnrollment({ userData }) {
           type: 'Student Enrollment',
           hod: hodName,
           degree_level: degreeLevel,
-          academic_year: selectedAcademicYear // <-- Add this
+          academic_year: selectedAcademicYear
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -403,16 +318,18 @@ export default function StudentEnrollment({ userData }) {
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
           type: 'Student Enrollment',
           degree_level: degreeLevel,
-          academic_year: selectedAcademicYear // <-- Add this
+          academic_year: selectedAcademicYear
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
+      setIsDeclarationLocked(true);
       setFinalSubmitSuccess(true);
+      setGlobalMessage({ type: 'success', text: 'Declaration form submitted successfully' });
       setTimeout(() => {
         setShowDeclaration(false);
         setFinalSubmitSuccess(false);
         setDeclarationYearSlot(null);
-        checkDeclarationLockStatus(); // Refresh lock status
+        checkDeclarationLockStatus(); // Always refresh lock status from backend
       }, 2000);
     } catch (err) {
       setGlobalMessage({ type: 'error', text: 'Failed to submit declaration' });
@@ -422,18 +339,21 @@ export default function StudentEnrollment({ userData }) {
   };
 
   // Helper to check if all years are completed (using yearCompletionStatus)
-  const isAllYearsCompleted = () => {
-    return yearSlots.every((slot) => yearCompletionStatus[slot] === 'completed');
-  };
 
   const openDeclarationModal = () => {
-    fetchHodName(); // Always fetch latest HOD name before opening modal
+    // Only include completed years
+    const completedYears = yearSlots.filter(year => yearCompletionStatus[year] === 'Completed');
+    setDeclarationYearSlot(completedYears.join(', ')); // <-- set as string
+    fetchHodName();
     setShowDeclaration(true);
   };
 
   const handleUpdateEnrollment = async () => {
     if (!isUpdateMode) {
       // First click: fetch and fill data
+      // snapshot current enrollmentData so Cancel can restore it
+      const prev = enrollmentData;
+      setBackupEnrollmentData(prev);
       setUpdating(true);
       try {
         await fetchEnrollmentDataForYear(yearSlots[currentYearSlot]);
@@ -441,13 +361,16 @@ export default function StudentEnrollment({ userData }) {
         setGlobalMessage({ type: 'success', text: 'Enrollment data loaded. You can now update and save.' });
       } catch {
         setGlobalMessage({ type: 'error', text: 'Failed to fetch enrollment data for update.' });
+        // restore immediately from local snapshot if fetch failed
+        setEnrollmentData(prev || {});
+        setBackupEnrollmentData(null);
       } finally {
         setUpdating(false);
         setTimeout(() => setGlobalMessage(null), 3000);
       }
       return;
     }
-
+    
     // Second click: update data
     setUpdating(true);
     try {
@@ -483,7 +406,6 @@ export default function StudentEnrollment({ userData }) {
         setGlobalMessage({ type: 'success', text: 'Enrollment data updated successfully' });
         fetchStudentDetails();
         setIsUpdateMode(false); // Reset update mode after successful update
-        // await fetchEnrollmentDataForYear(yearSlots[currentYearSlot]); // REMOVE THIS LINE
 
         // Reset form fields to zero after update
         setEnrollmentData(() => {
@@ -496,6 +418,8 @@ export default function StudentEnrollment({ userData }) {
           });
           return data;
         });
+        // clear backup after successful update
+        setBackupEnrollmentData(null);
       } else {
         setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update enrollment data' });
       }
@@ -520,10 +444,7 @@ export default function StudentEnrollment({ userData }) {
     setEnrollmentData(emptyData);
   }, [degreeLevel]);
 
-  useEffect(() => {
-    fetchYearCompletionStatus();
-    // ...other logic...
-  }, [degreeLevel]);
+  // ...other logic...
 
   // Reset to page 1 if studentDetails change
   useEffect(() => {
@@ -591,10 +512,130 @@ export default function StudentEnrollment({ userData }) {
     );
   }
 
+
+  const handleEnrollmentSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setSubmitting(true);
+    try {
+      // Prepare records in the required format
+      const records = [];
+      Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
+        Object.entries(categoryMaster).forEach(([catId, catName]) => {
+          Object.entries(genderMaster).forEach(([genderId, genderName]) => {
+            const count = enrollmentData[subcatName][catName][genderName];
+            records.push({
+              academic_year: selectedAcademicYear,
+              dept_id: userData?.dept_id,
+              category_id: parseInt(catId),
+              subcategory_id: parseInt(subcatId),
+              gender_id: parseInt(genderId),
+              count: parseInt(count),
+              year: yearSlots[currentYearSlot],
+              degree_level: degreeLevel
+            });
+          });
+        });
+      });
+
+      const res = await fetch(API.ENROLLMENT, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        },
+        body: JSON.stringify({ records }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEnrollmentData(() => {
+          const data = {};
+          subcategories.forEach(sub => {
+            data[sub] = {};
+            categories.forEach(cat => {
+              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+            });
+          });
+          return data;
+        });
+        fetchStudentDetails(); // <-- Fetch and show updated table immediately
+      } else {
+        setGlobalMessage({ type: 'error', text: data.message || 'Submission failed.' });
+      }
+    } catch (err) {
+      setGlobalMessage({ type: 'error', text: 'Error submitting enrollment data.' });
+    }
+    setSubmitting(false);
+  };
+
+  const updateEnrollmentStatus = async (status) => {
+    try {
+      // Update status for the current year slot
+      const res = await fetch(`${API_BASE}/student-enrollment/update-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dept_id: userData.dept_id,
+          year: yearSlots[currentYearSlot],
+          status,
+          academic_year: selectedAcademicYear,
+          degree_level: degreeLevel,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGlobalMessage(`Status updated to ${status}`);
+      
+      } else {
+        setGlobalMessage(data.message || 'Status update failed.');
+      }
+    } catch (err) {
+      setGlobalMessage('Error updating status.');
+    }
+  };
+
+  useEffect(() => {
+    async function fetchDegreeLevels() {
+      if (!userData?.dept_id) return;
+      const res = await fetch(`http://localhost:5000/api/degree-levels/${userData.dept_id}`);
+      const data = await res.json();
+      if (data.success && data.degree_levels.length > 0) {
+        setAllowedDegreeLevels(data.degree_levels);
+        setDegreeLevel(data.degree_levels[0]); // Always use the first as default
+      }
+    }
+    fetchDegreeLevels();
+  }, [userData?.dept_id]);
+
+  // Helper to get breakdown for selected subcategory and year
+  function getSubcategoryBreakdown(subcategory, year) {
+    // Find all details for this year, degreeLevel, and subcategory
+    return categories.map(category => {
+      const detail = studentDetails.find(
+        d =>
+          d.year === year &&
+          d.degree_level === degreeLevel &&
+          d.subcategory === subcategory &&
+          d.category === category
+      );
+      return {
+        category,
+        male: detail ? detail.male_count : 0,
+        female: detail ? detail.female_count : 0,
+        transgender: detail ? detail.transgender_count : 0,
+      };
+    });
+  }
+
   return (
     <>
       <div className="space-y-10 max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
+
+         {/* Academic Year Badge */}
+        <div className="flex justify-start mb-6">
+          <AcademicYearBadge year={selectedAcademicYear || academicYears?.[0] || ""} />
+        </div> 
+
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h3 className="text-3xl font-bold text-gray-900 tracking-tight">Student Enrollment</h3>
@@ -659,17 +700,24 @@ export default function StudentEnrollment({ userData }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Degree Level
               </label>
-              <select
-                value={degreeLevel}
-                onChange={e => {
-                  setDegreeLevel(e.target.value);
-                  setCurrentYearSlot(0); // Reset year slot on degree change
-                }}
-                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
-              >
-                <option value="UG">UG</option>
-                <option value="PG">PG</option>
-              </select>
+              {allowedDegreeLevels.length === 1 ? (
+                <input
+                  type="text"
+                  value={degreeLevel}
+                  readOnly
+                  className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-base cursor-not-allowed"
+                />
+              ) : (
+                <select
+                  value={degreeLevel}
+                  onChange={e => setDegreeLevel(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg bg-white text-base"
+                >
+                  {allowedDegreeLevels.map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="flex-1 flex gap-2 justify-end items-end">
               <button
@@ -694,99 +742,96 @@ export default function StudentEnrollment({ userData }) {
           </div>
 
           {/* Year Completion Status */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <RiCheckboxCircleLine className="text-blue-600" />
-                  Year Completion Status
-                </span>
-                <span className="text-sm text-blue-500 font-medium">
-                  Academic Year: <span className="font-semibold">{statusAcademicYear || 'N/A'}</span>
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {yearSlots.map((slot) => {
-                  const isCompleted = yearCompletionStatus[slot] === 'completed';
-                  return (
-                    <div
-                      key={slot}
-                      className={`flex items-center gap-3 px-5 py-4 rounded-xl border transition-all duration-200 shadow-sm
-                        ${isCompleted
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-yellow-50 border-yellow-200'
-                        }`}
-                    >
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full
-                        ${isCompleted ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                        {isCompleted ? (
-                          <RiCheckboxCircleLine className="text-2xl text-green-600" />
-                        ) : (
-                          <RiBarChartBoxLine className="text-2xl text-yellow-500" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-base font-semibold text-gray-800">{slot}</div>
-                        <div className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-bold
-                          ${isCompleted
-                            ? 'bg-green-200 text-green-800'
-                            : 'bg-yellow-200 text-yellow-800'
-                          }`}
-                        >
-                          {isCompleted ? 'Completed' : 'Incomplete'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Show Final Declaration Button if all years are finished */}
-              {isAllYearsCompleted() && !isDeclarationLocked && (
-                <div className="flex justify-end mt-6">
-                  <button
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
-                    onClick={() => {
-                      setDeclarationYearSlot(yearSlots);
-                      openDeclarationModal();
-                    }}
-                  >
-                    Final Submission
-                  </button>
-                </div>
-              )}
-              {isDeclarationLocked && (
-                <div className="flex justify-end mt-6">
-                  <span className="px-6 py-3 rounded-xl bg-gray-300 text-gray-600 font-semibold shadow">
-                    Final Submission Locked
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+          <div className="bg-blue-50/60 rounded-2xl p-6 mb-8 shadow-sm border border-blue-100 flex flex-col gap-4">
+  <div className="flex items-center justify-between mb-4">
+    <div className="flex items-center gap-2">
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" fill="#2563eb"/></svg>
+      </span>
+      <h4 className="text-lg font-semibold text-blue-900">Year Completion Status</h4>
+    </div>
+    <span className="text-sm text-blue-700 font-medium">Academic Year: {selectedAcademicYear || 'N/A'}</span>
+  </div>
+  <div className="flex gap-8 justify-center w-full">
+    {getYearSlots().map(year => (
+      <div
+        key={year}
+        className="flex flex-col items-center justify-center px-8 py-6 rounded-xl border shadow-sm"
+        style={{
+          minWidth: 180,
+          maxWidth: 220,
+          background: yearCompletionStatus[year] === 'Completed' ? '#f6fff4' : '#fffbe6',
+          borderColor: yearCompletionStatus[year] === 'Completed' ? '#b7f5c2' : '#ffe9a7',
+          boxShadow: '0 1px 6px 0 rgba(0,0,0,0.04)'
+        }}
+      >
+        <span className="mb-2">
+          <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+            <path d="M3 13h2v-2H3v2zm4 0h2v-2H7v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2z" fill="#fbbf24"/>
+          </svg>
+        </span>
+        <span className="font-semibold text-base text-gray-900 mb-1">{year}</span>
+        <span className={`px-3 py-1 rounded-full text-xs font-bold ${yearCompletionStatus[year] === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+          {yearCompletionStatus[year] === 'Completed' ? 'Completed' : 'Incomplete'}
+        </span>
+      </div>
+    ))}
+  </div>
+  <button
+    disabled={
+      !getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') ||
+      isDeclarationLocked // <-- Disable if locked
+    }
+    onClick={openDeclarationModal}
+    className={`mt-6 mx-auto py-3 px-8 rounded-lg font-semibold text-white transition-all duration-200
+      ${
+        getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') && !isDeclarationLocked
+          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+          : 'bg-gray-400 cursor-not-allowed'
+      }`}
+    style={{
+      display: 'block',
+      margin: '0 auto',
+      minWidth: 180,
+      maxWidth: 260,
+      textAlign: 'center'
+    }}
+  >
+    Final Submission
+  </button>
+</div>
 
           {/* Categories Grid */}
-          <div className="grid grid-cols-1 gap-8">
-            {subcategories.map((subcategory) => (
-              <div key={subcategory}
-                className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300"
+          <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
+            {['PwBD', 'Muslim Minority', 'Other Minority'].map(subcategory => (
+              <div
+                key={subcategory}
+                className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300 mx-auto"
+                style={{
+                  minWidth: 380,
+                  maxWidth: 360,
+                  padding: "0.5rem 0.5rem",
+                  marginBottom: 0,
+                }}
               >
-                <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-6 py-4 flex items-center">
-                  <h4 className="font-semibold text-lg">{subcategory}</h4>
+                <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-4 py-2 flex items-center">
+                  <h4 className="font-semibold text-base">{subcategory}</h4>
                 </div>
-                <div className="p-6 space-y-6">
+                <div className="p-4 space-y-4">
                   {categories.map((category) => (
-                    <div key={category}
-                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-5 transition-all duration-200"
+                    <div
+                      key={category}
+                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-3 transition-all duration-200"
                     >
-                      <div className="flex items-center justify-between mb-4">
-                        <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors text-sm">
                           {category}
                         </h5>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-2">
                         {genders.map((gender) => (
-                          <div key={gender} className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-600">
+                          <div key={gender} className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-600">
                               {gender}
                             </label>
                             <input
@@ -807,10 +852,10 @@ export default function StudentEnrollment({ userData }) {
                                   }
                                 }));
                               }}
-                              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 
+                              className="w-full px-2 py-1.5 rounded-lg border border-gray-200 
                                 focus:ring-2 focus:ring-blue-500 focus:border-transparent
                                 bg-white shadow-sm transition-all duration-200
-                                hover:shadow group-hover:border-blue-200"
+                                hover:shadow group-hover:border-blue-200 text-xs"
                             />
                           </div>
                         ))}
@@ -842,32 +887,60 @@ export default function StudentEnrollment({ userData }) {
                   <span>Submitting...</span>
                 </div>
               ) : (
-                'Submit Enrollment Data'
+                'Submit'
               )}
             </button>
 
             {!isDeclarationLocked && (
-              <button
-                type="button"
-                disabled={updating || loadingYearData}
-                onClick={handleUpdateEnrollment}
-                className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
-                  shadow-lg shadow-blue-500/20
-                  ${updating || loadingYearData
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : isUpdateMode
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
-                      : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
-                  }
-                  transform transition-all duration-200 hover:-translate-y-0.5`}
-              >
-                {updating ? (
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
-                    <span>Updating...</span>
-                  </div>
-                ) : isUpdateMode ? 'Save Changes' : 'Edit Enrollment Data'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={updating || loadingYearData}
+                  onClick={handleUpdateEnrollment}
+                  className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                    shadow-lg shadow-blue-500/20
+                    ${updating || loadingYearData
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : isUpdateMode
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                        : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                    }
+                    transform transition-all duration-200 hover:-translate-y-0.5`}
+                >
+                  {updating ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"/>
+                      <span>Updating...</span>
+                    </div>
+                  ) : isUpdateMode ? 'Save Changes' : 'Edit'}
+                </button>
+                {isUpdateMode && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Exit edit mode and restore previous enrollment data (discard changes)
+                      setIsUpdateMode(false);
+                      if (backupEnrollmentData) {
+                        setEnrollmentData(backupEnrollmentData);
+                        setBackupEnrollmentData(null);
+                      } else {
+                        // fallback: reset to zeros
+                        const empty = {};
+                        subcategories.forEach(sub => {
+                          empty[sub] = {};
+                          categories.forEach(cat => {
+                            empty[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+                          });
+                        });
+                        setEnrollmentData(empty);
+                      }
+                    }}
+                    className="w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-gray-700 text-lg bg-gray-100 hover:bg-gray-200 shadow-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </>
             )}
           </div>
         </form>
@@ -935,6 +1008,60 @@ export default function StudentEnrollment({ userData }) {
             </table>
           </div>
           {renderPagination()}
+        </div>
+
+        {/* Tabbed Summary Containers */}
+        <div className="mt-12">
+          <div className="flex flex-col items-center mb-6">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Enrollment Summary ({degreeLevel})
+            </h3>
+            {/* Centered Year Tabs */}
+            <div className="flex justify-center mt-4">
+              <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
+                {Object.keys(summaryData).map(year => (
+                  <button
+                    key={year}
+                    onClick={() => setSummaryYear(year)}
+                    className={`px-4 py-1.5 text-sm font-semibold rounded-md transition-colors ${
+                      summaryYear === year
+                        ? 'bg-white text-blue-700 shadow-sm'
+                        : 'bg-transparent text-gray-600 hover:bg-gray-300'
+                    }`}
+                  >
+                    {year}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {summaryData[summaryYear] && Object.entries(summaryData[summaryYear]).map(([subcategory, counts]) => (
+              <div
+                key={subcategory}
+                className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 cursor-pointer hover:shadow-xl transition"
+                onClick={() => { setEditingSubcategory(subcategory); setEditingYear(summaryYear); }}
+              >
+                <h4 className="font-bold text-lg text-blue-800 mb-4">{subcategory}</h4>
+                <div className="flex justify-around text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-blue-600">{counts.male}</p>
+                    <p className="text-sm text-gray-500">Male</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-pink-600">{counts.female}</p>
+                    <p className="text-sm text-gray-500">Female</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-purple-600">{counts.transgender}</p>
+                    <p className="text-sm text-gray-500">Transgender</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1011,7 +1138,7 @@ export default function StudentEnrollment({ userData }) {
                   setShowConfirm(false);
                   await handleEnrollmentSubmit();
                   await updateEnrollmentStatus('finished');
-                  setGlobalMessage({ type: 'success', text: 'Year marked as completed.' });
+                  setGlobalMessage({ type: 'success', text: 'Student enrollment data submitted successfully.' });
                   setTimeout(() => setGlobalMessage(null), 3000);
                 }}
               >
@@ -1063,7 +1190,7 @@ export default function StudentEnrollment({ userData }) {
                 <div>
                   <p className="text-sm font-medium text-gray-500">Completed Years</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {(declarationYearSlot || []).join(', ')}
+                    {declarationYearSlot || ''}
                   </p>
                 </div>
                 <div>
@@ -1092,7 +1219,7 @@ export default function StudentEnrollment({ userData }) {
                   <p className="text-gray-600 leading-relaxed">
                     I hereby declare that the Student Enrollment data for{' '}
                     <span className="font-semibold text-blue-600">
-                      {(declarationYearSlot || []).join(', ')}
+                      {declarationYearSlot || ''}
                     </span>{' '}
                     is true and correct to the best of my knowledge and belief. I understand that any 
                     discrepancy found later may lead to necessary action as per institutional policy.
@@ -1144,6 +1271,90 @@ export default function StudentEnrollment({ userData }) {
           </motion.div>
         </div>
       )}
+
+      {/* Modal for subcategory breakdown */}
+      {editingSubcategory && editingYear && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setEditingSubcategory(null)}
+          style={{ transition: 'all 0.3s' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 40 }}
+            className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-0 max-w-xl w-full mx-4 border border-blue-100 relative"
+            onClick={e => e.stopPropagation()}
+            style={{
+              boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
+              border: '1px solid rgba(255,255,255,0.18)'
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <RiBarChartBoxLine className="text-3xl text-white" />
+                <h3 className="text-xl font-bold text-white">
+                  {editingSubcategory} - {editingYear} Breakdown
+                </h3>
+              </div>
+              <button
+                className="text-white text-2xl hover:text-blue-200 transition"
+                onClick={() => setEditingSubcategory(null)}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
+            {/* Table */}
+            <div className="px-8 py-6">
+              <table className="min-w-full text-base rounded-xl overflow-hidden shadow bg-white/90">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-100 to-indigo-100">
+                    <th className="px-4 py-2 text-left font-bold">Category</th>
+                    <th className="px-4 py-2 font-bold text-blue-700">Male</th>
+                    <th className="px-4 py-2 font-bold text-pink-700">Female</th>
+                    <th className="px-4 py-2 font-bold text-purple-700">Transgender</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rows = getSubcategoryBreakdown(editingSubcategory, editingYear);
+                    const hasData = rows.some(r => Number(r.male) > 0 || Number(r.female) > 0 || Number(r.transgender) > 0);
+                    if (!hasData) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-gray-400">
+                            <RiBarChartBoxLine className="mx-auto text-4xl mb-2 text-blue-200" />
+                            <span>No data available for this subcategory and year.</span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return rows.map(row => (
+                      <tr key={row.category} className="hover:bg-blue-50 transition">
+                        <td className="px-4 py-2 font-semibold">{row.category}</td>
+                        <td className="px-4 py-2 text-blue-700 font-bold">{row.male}</td>
+                        <td className="px-4 py-2 text-pink-700 font-bold">{row.female}</td>
+                        <td className="px-4 py-2 text-purple-700 font-bold">{row.transgender}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-8 pb-6">
+              <button
+                className="w-full py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
+                onClick={() => setEditingSubcategory(null)}
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }
+

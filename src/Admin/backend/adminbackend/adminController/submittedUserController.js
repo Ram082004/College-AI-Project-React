@@ -4,7 +4,8 @@ const { pool } = require('../../config/db');
 exports.getAllSubmittedData = async (req, res) => {
   try {
     const { department, type, degree_level, academic_year } = req.query;
-    let query = `SELECT id, dept_id, department, name, year, type, hod, degree_level, academic_year, submitted_at, locked FROM submitted_data WHERE 1=1`;
+    // include explicit status column so clients can rely on DB truth
+    let query = `SELECT id, dept_id, department, name, year, type, hod, degree_level, academic_year, submitted_at, locked, status FROM submitted_data WHERE 1=1`;
     const params = [];
     if (department) {
       query += ' AND department = ?';

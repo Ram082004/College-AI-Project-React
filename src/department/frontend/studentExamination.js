@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 import { RiInformationLine, RiBarChartBoxLine, RiCheckboxCircleLine } from 'react-icons/ri';
 import axios from 'axios';
+import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge';
 
 const API_BASE = 'http://localhost:5000/api';
 const API = {
@@ -29,9 +30,10 @@ const genderMaster = {
   3: 'Transgender'
 };
 
+// Update resultTypes array
 const resultTypes = [
   'Student Appeared',
-  'Student Passed',
+  'Student Passed Out',
   'Student Above 60%'
 ];
 
@@ -52,7 +54,8 @@ const subcategoryInfo = {
   'Other Minority': 'Students belonging to other minority communities including Sikh, Christian, Buddhist, Parsi and Jain'
 };
 
-export default function StudentExamination({ userData, yearSlots }) {
+export default function StudentExamination({ userData }) {
+  const dept_id = userData?.dept_id;
   const [academicYears, setAcademicYears] = useState([]);
   const [currentYearSlot, setCurrentYearSlot] = useState(0);
   const [resultType, setResultType] = useState(resultTypes[0]);
@@ -75,28 +78,64 @@ export default function StudentExamination({ userData, yearSlots }) {
   const [showDeclaration, setShowDeclaration] = useState(false);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [finalSubmitSuccess, setFinalSubmitSuccess] = useState(false);
-  const [yearStatuses, setYearStatuses] = useState({});
-  const [statusAcademicYear, setStatusAcademicYear] = useState('');
+  const [yearCompletionStatus, setYearCompletionStatus] = useState({});
+
   const [declarationYearSlot, setDeclarationYearSlot] = useState(null);
   const [isDeclarationLocked, setIsDeclarationLocked] = useState(false);
   const [hodName, setHodName] = useState('');
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [degreeLevel, setDegreeLevel] = useState('UG'); // UG by default
-  const [examYearCompletionStatus, setExamYearCompletionStatus] = useState({});
-  const [examStatusAcademicYear, setExamStatusAcademicYear] = useState('');
+  const [degreeLevel, setDegreeLevel] = useState('UG');
+  const [allowedDegreeLevels, setAllowedDegreeLevels] = useState(['UG']); // default fallback
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
-  // Replace all yearSlots usage with getYearSlots()
-  const getYearSlots = () => (degreeLevel === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year']);
+  const [backupExaminationData, setBackupExaminationData] = useState(null); // Backup for cancel
+  const [summaryData, setSummaryData] = useState({});
+  const [summaryYear, setSummaryYear] = useState('III Year'); // Default year for UG
+
+  const [activeTab, setActiveTab] = useState('Student Appeared'); // Default tab
+  const [editingSubcategory, setEditingSubcategory] = useState(null); // Subcategory name
+  const [editingYear, setEditingYear] = useState(null); // Year string
+  const [showBreakdown, setShowBreakdown] = useState(null); // { subName: string }
+
+  // Fetch allowed degree levels for this department
+  useEffect(() => {
+    async function fetchDegreeLevels() {
+      if (!userData?.dept_id) return;
+      try {
+        const res = await axios.get(`http://localhost:5000/api/degree-levels/${userData.dept_id}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        if (res.data.success && Array.isArray(res.data.degree_levels) && res.data.degree_levels.length > 0) {
+          setAllowedDegreeLevels(res.data.degree_levels);
+          // If current degreeLevel is not allowed, reset to first allowed
+          if (!res.data.degree_levels.includes(degreeLevel)) {
+            setDegreeLevel(res.data.degree_levels[0]);
+          }
+        } else {
+          setAllowedDegreeLevels(['UG']);
+          setDegreeLevel('UG');
+        }
+      } catch {
+        setAllowedDegreeLevels(['UG']);
+        setDegreeLevel('UG');
+      }
+    }
+    fetchDegreeLevels();
+    // eslint-disable-next-line
+  }, [userData?.dept_id]);
+
+  // Helper: Get year slots based on degree level
+  // For this application UG maps to III Year only, PG maps to II Year only.
+  // Returns a single-item array so UI and logic work with a single slot.
+  const getYearSlots = () => (degreeLevel === 'UG' ? ['III Year'] : ['II Year']);
 
   useEffect(() => {
     if (!userData?.dept_id) return;
     fetchAcademicYears();
     fetchExaminationDetails();
-    fetchYearStatuses();
     // eslint-disable-next-line
   }, [userData]);
 
@@ -129,105 +168,40 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
-  // Fetch year statuses for all slots
-  const fetchYearStatuses = async () => {
-    try {
-      const yearsParam = encodeURIComponent(yearSlots.join(','));
-      const res = await axios.get(
-        `http://localhost:5000/api/student-examination/year-statuses/${userData.dept_id}?years=${yearsParam}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
-      if (res.data.success) {
-        setYearStatuses(res.data.statuses || {});
-        setStatusAcademicYear(res.data.academicYear || '');
-      } else {
-        setYearStatuses({});
-        setStatusAcademicYear('');
-      }
-    } catch {
-      setYearStatuses({});
-      setStatusAcademicYear('');
-    }
-  };
-
-  // Fetch examination year completion status
-  const fetchExamYearCompletionStatus = async () => {
-    try {
-      const yearsParam = encodeURIComponent(yearSlots.join(','));
-      const res = await fetch(
-        `http://localhost:5000/api/student-examination/year-completion-status/${userData.dept_id}?years=${yearsParam}&degree_level=${degreeLevel}`
-      );
-      if (!res.ok) {
-        let errorMsg = 'Failed to fetch examination year completion status';
-        try {
-          const errData = await res.json();
-          errorMsg = errData.message || errorMsg;
-        } catch {}
-        setGlobalMessage({ type: 'error', text: errorMsg });
-        setExamYearCompletionStatus({});
-        setExamStatusAcademicYear('');
-        return;
-      }
-      const data = await res.json();
-      if (data.success) {
-        setExamYearCompletionStatus(data.statuses);
-        setExamStatusAcademicYear(data.academicYear);
-      } else {
-        setExamYearCompletionStatus({});
-        setExamStatusAcademicYear('');
-      }
-    } catch (err) {
-      setGlobalMessage({ type: 'error', text: 'Network error fetching examination year completion status' });
-      setExamYearCompletionStatus({});
-      setExamStatusAcademicYear('');
-    }
-  };
-
-  // Call fetchExamYearCompletionStatus on mount and when degreeLevel changes
   useEffect(() => {
-    if (userData?.dept_id) {
-      fetchExamYearCompletionStatus();
+    async function fetchYearStatuses() {
+      if (!userData?.dept_id || !selectedAcademicYear) return;
+      try {
+        const res = await axios.get(
+          `${API_BASE}/student-examination/year-statuses/${userData.dept_id}`,
+          {
+            params: {
+              degree_level: degreeLevel,
+              academic_year: selectedAcademicYear
+            },
+            headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+          }
+        );
+        if (res.data.success && Array.isArray(res.data.statuses)) {
+          const statusObj = {};
+          res.data.statuses.forEach(({ year, status }) => {
+            statusObj[year] = status;
+          });
+          setYearCompletionStatus(statusObj);
+        } else {
+          setYearCompletionStatus({});
+        }
+      } catch {
+        setYearCompletionStatus({});
+      }
     }
-    // eslint-disable-next-line
-  }, [userData, degreeLevel]);
-
-  // Helper to check if all years are completed for the selected degree level
-  const isAllExamYearsCompleted = () => {
-    return getYearSlots().every((slot) => examYearCompletionStatus[slot] === 'completed');
-  };
-
-  // Helper to get all finished years (like student enrollment)
-  const getAllExamFinishedYears = () => {
-    return yearSlots.filter((slot) => examYearCompletionStatus[slot] === 'finished');
-  };
-
-  // Helper to get all incomplete years (like student enrollment)
-  const getAllExamIncompleteYears = () => {
-    return yearSlots.filter((slot) => examYearCompletionStatus[slot] !== 'finished');
-  };
-
-  // Helper to get status for a year (like student enrollment)
-  const getExamYearStatus = (slot) => {
-    return examYearCompletionStatus[slot] || 'incomplete';
-  };
-
-  // Helper to check if all years are finished
-  const isAllYearsFinished = () => {
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    return yearSlots.every((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
-  }
-
-
-  const getAllFinishedYears = () => {
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    return yearSlots.filter((slot) => yearStatuses[normalizeYear(slot)] === 'finished');
-  };
+    fetchYearStatuses();
+  }, [userData?.dept_id, degreeLevel, selectedAcademicYear]);
 
   const handleExaminationSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
     setSubmitting(true);
     try {
-      const selectedAcademicYear = academicYears[0];
       if (!selectedAcademicYear) {
         setGlobalMessage({ type: 'error', text: 'Academic year not found' });
         setSubmitting(false);
@@ -249,7 +223,7 @@ export default function StudentExamination({ userData, yearSlots }) {
                 count: parseInt(count),
                 year: getYearSlots()[currentYearSlot],
                 result_type: resultType,
-                degree_level: degreeLevel // <-- Add this
+                degree_level: degreeLevel
               });
             }
           });
@@ -268,7 +242,7 @@ export default function StudentExamination({ userData, yearSlots }) {
       );
 
       if (response.data.success) {
-        setGlobalMessage({ type: 'success', text: 'Examination data added successfully' });
+        setGlobalMessage({ type: 'success', text: 'Student examination data submitted successfully' });
         setExaminationData(() => {
           const data = {};
           subcategories.forEach(sub => {
@@ -280,7 +254,43 @@ export default function StudentExamination({ userData, yearSlots }) {
           return data;
         });
         fetchExaminationDetails();
-        if (currentYearSlot < yearSlots.length - 1) {
+        // Immediately update year status to 'Completed' after successful data entry
+        await fetch(`${API_BASE}/student-examination/update-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dept_id: userData?.dept_id,
+            year: getYearSlots()[currentYearSlot],
+            status: 'Completed',
+            academic_year: selectedAcademicYear,
+            degree_level: degreeLevel
+          })
+        });
+        // ADD THIS LINE TO REFRESH YEAR STATUS
+        // Fetch year statuses again to update UI instantly
+        try {
+          const res = await axios.get(
+            `${API_BASE}/student-examination/year-statuses/${userData.dept_id}`,
+            {
+              params: {
+                degree_level: degreeLevel,
+                academic_year: selectedAcademicYear
+              },
+              headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+            }
+          );
+          if (res.data.success && Array.isArray(res.data.statuses)) {
+            const statusObj = {};
+            res.data.statuses.forEach(({ year, status }) => {
+              statusObj[year] = status;
+            });
+            setYearCompletionStatus(statusObj);
+          }
+        } catch {
+          // ignore error, UI will update on next load
+        }
+        // advance only if there were multiple slots (keeps compatibility)
+        if (currentYearSlot < getYearSlots().length - 1) {
           setCurrentYearSlot(currentYearSlot + 1);
         }
       }
@@ -292,30 +302,6 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
-  // Updated examination status update function
-  const updateExaminationStatus = async (status) => {
-    try {
-      const response = await axios.post(
-        'http://localhost:5000/api/student-examination/update-status',
-        {
-          dept_id: userData?.dept_id,
-          year: yearSlots[currentYearSlot],
-          status
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
-      );
-      
-      if (response.data.success) {
-        setGlobalMessage({ type: 'success', text: `Status updated to ${status}` });
-        // Refresh examination details after status update
-        fetchExaminationDetails();
-      } else {
-        setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update status' });
-      }
-    } catch (err) {
-      setGlobalMessage({ type: 'error', text: err.response?.data?.message || 'Failed to update status' });
-    }
-  };
 
   const fetchHodName = async () => {
     try {
@@ -346,7 +332,7 @@ export default function StudentExamination({ userData, yearSlots }) {
     setFinalSubmitting(true);
     try {
       await axios.post(
-        'http://localhost:5000/api/student-examination/submit-declaration',
+        `${API_BASE}/student-examination/submit-declaration`,
         {
           dept_id: userData?.dept_id,
           name: userData?.name || userData?.username,
@@ -355,7 +341,7 @@ export default function StudentExamination({ userData, yearSlots }) {
           type: 'Student Examination',
           hod: hodName,
           degree_level: degreeLevel,
-          academic_year: selectedAcademicYear // <-- Add this
+          academic_year: selectedAcademicYear
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
@@ -372,6 +358,7 @@ export default function StudentExamination({ userData, yearSlots }) {
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
       setFinalSubmitSuccess(true);
+      setGlobalMessage({ type: 'success', text: 'Declaration form submitted successfully' });
       setTimeout(() => {
         setShowDeclaration(false);
         setFinalSubmitSuccess(false);
@@ -386,18 +373,18 @@ export default function StudentExamination({ userData, yearSlots }) {
   };
 
   const checkDeclarationLockStatus = async () => {
+    if (!userData?.dept_id || !selectedAcademicYear) return;
     try {
       const res = await axios.get(
         'http://localhost:5000/api/student-examination/declaration-lock-status',
         {
           params: {
-            deptId: userData?.dept_id,
+            deptId: userData.dept_id,
             year: getYearSlots().join(', '),
             type: 'Student Examination',
             degree_level: degreeLevel,
-            academic_year: selectedAcademicYear // <-- Add this
-          },
-          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+            academic_year: selectedAcademicYear
+          }
         }
       );
       setIsDeclarationLocked(res.data.locked);
@@ -407,11 +394,12 @@ export default function StudentExamination({ userData, yearSlots }) {
   };
 
   useEffect(() => {
-    if (userData?.dept_id) {
+    if (userData?.dept_id && selectedAcademicYear) {
       checkDeclarationLockStatus();
     }
-  }, [userData, degreeLevel]);
+  }, [userData, degreeLevel, selectedAcademicYear]);
 
+  // Edit mode: fetch data for selected year slot and result type
   const fetchExaminationDataForYear = async (yearSlot, resultType) => {
     if (!userData?.dept_id) return;
     setUpdating(true);
@@ -422,7 +410,11 @@ export default function StudentExamination({ userData, yearSlots }) {
       if (res.data.success && Array.isArray(res.data.details)) {
         // Filter for the selected year slot and result type
         const filtered = res.data.details.filter(
-          (row) => row.year === yearSlot && row.result_type === resultType && row.degree_level === degreeLevel
+          (row) =>
+            row.year === yearSlot &&
+            row.result_type === resultType &&
+            row.degree_level === degreeLevel &&
+            row.academic_year === selectedAcademicYear
         );
         // Build examinationData object
         const newData = {};
@@ -453,94 +445,22 @@ export default function StudentExamination({ userData, yearSlots }) {
     }
   };
 
-  const handleUpdateExamination = async () => {
-    if (!isUpdateMode) {
-      // First click: fetch and fill data
-      await fetchExaminationDataForYear(yearSlots[currentYearSlot], resultType);
-      setIsUpdateMode(true);
-      setGlobalMessage({ type: 'success', text: 'Examination data loaded. You can now update and save.' });
-      setTimeout(() => setGlobalMessage(null), 3000);
-      return;
-    }
-
-    // Second click: update data
-    setUpdating(true);
-    try {
-      const selectedAcademicYear = academicYears[0];
-      if (!selectedAcademicYear) {
-        setGlobalMessage({ type: 'error', text: 'Academic year not found' });
-        setUpdating(false);
-        return;
-      }
-      const updateRecords = [];
-      Object.entries(subcategoryMaster).forEach(([subcatId, subcatName]) => {
-        Object.entries(categoryMaster).forEach(([catId, catName]) => {
-          Object.entries(genderMaster).forEach(([genderId, genderName]) => {
-            const count = examinationData[subcatName][catName][genderName];
-            updateRecords.push({
-              academic_year: selectedAcademicYear,
-              dept_id: userData?.dept_id,
-              category_id: parseInt(catId),
-              subcategory_id: parseInt(subcatId),
-              gender_id: parseInt(genderId),
-              count: parseInt(count),
-              year: yearSlots[currentYearSlot],
-              result_type: resultType,
-              degree_level: degreeLevel
-            });
-          });
-        });
-      });
-      const response = await axios.put(
-        'http://localhost:5000/api/student-examination/update',
-        { records: updateRecords },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-      if (response.data.success) {
-        setGlobalMessage({ type: 'success', text: 'Examination data updated successfully' });
-        fetchExaminationDetails();
-        setIsUpdateMode(false);
-        // Reset form fields to zero after update
-        setExaminationData(() => {
-          const data = {};
-          subcategories.forEach(sub => {
-            data[sub] = {};
-            categories.forEach(cat => {
-              data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-            });
-          });
-          return data;
-        });
-      } else {
-        setGlobalMessage({ type: 'error', text: response.data.message || 'Failed to update examination data' });
-      }
-    } catch (error) {
-      setGlobalMessage({ type: 'error', text: error.response?.data?.message || 'Failed to update examination data' });
-    } finally {
-      setUpdating(false);
-      setTimeout(() => setGlobalMessage(null), 3000);
-    }
+  // Edit button handler
+  const handleEditMode = async () => {
+    setBackupExaminationData(examinationData);
+    // Always use the current selected resultType (including "Student Above 60%")
+    await fetchExaminationDataForYear(getYearSlots()[currentYearSlot], resultType);
+    setIsUpdateMode(true);
   };
 
-  useEffect(() => {
-    if (isUpdateMode) {
-      // Reset form to empty and exit update mode when year or result type changes
-      const emptyData = {};
-      subcategories.forEach(sub => {
-        emptyData[sub] = {};
-        categories.forEach(cat => {
-          emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-        });
-      });
-      setExaminationData(emptyData);
-      setIsUpdateMode(false);
+  // Cancel button handler
+  const handleCancelEdit = () => {
+    setIsUpdateMode(false);
+    if (backupExaminationData) {
+      setExaminationData(backupExaminationData);
+      setBackupExaminationData(null);
     }
-  }, [currentYearSlot, resultType]);
+  };
 
   // Set default selected academic year when academicYears is fetched
   useEffect(() => {
@@ -551,22 +471,19 @@ export default function StudentExamination({ userData, yearSlots }) {
 
   // Fetch examination details and year completion status when selected academic year changes
   useEffect(() => {
-    if (selectedAcademicYear) {
-      fetchExaminationDetails();
-      fetchExamYearCompletionStatus();
-      // Reset form if needed
-      setExaminationData(() => {
-        const data = {};
-        subcategories.forEach(sub => {
-          data[sub] = {};
-          categories.forEach(cat => {
-            data[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
-          });
-        });
-        return data;
+    // Reset form fields for new academic year
+    const emptyData = {};
+    subcategories.forEach(sub => {
+      emptyData[sub] = {};
+      categories.forEach(cat => {
+        emptyData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
       });
-      setCurrentYearSlot(0);
-    }
+    });
+    setExaminationData(emptyData);
+
+    // Fetch records only for the selected academic year
+  fetchExaminationDetails();
+  setCurrentYearSlot(0);
   }, [selectedAcademicYear, degreeLevel]);
 
   // Pagination logic
@@ -630,20 +547,164 @@ export default function StudentExamination({ userData, yearSlots }) {
     );
   }
 
+  const openDeclarationModal = () => {
+    // Only include completed years
+    const completedYears = getYearSlots().filter(year => yearCompletionStatus[year] === 'Completed');
+    setDeclarationYearSlot(completedYears); // Use array for display, join(', ') for API
+    fetchHodName();
+    setShowDeclaration(true);
+  };
+
+  // Generate summary data
+  useEffect(() => {
+    const initialSummary = {};
+    getYearSlots().forEach((year) => {
+      initialSummary[year] = {
+        'Student Appeared': 0,
+        'Student Passed': 0,
+        'Student Above 60%': 0,
+      };
+    });
+
+    examinationDetails.forEach((detail) => {
+      if (detail.result_type && detail.year === summaryYear) {
+        initialSummary[summaryYear][detail.result_type] +=
+          detail.male_count + detail.female_count + detail.transgender_count;
+      }
+    });
+
+    setSummaryData(initialSummary);
+  }, [examinationDetails, summaryYear]);
+
+  // Generate summary data for active tab (robust filtering)
+  useEffect(() => {
+    const initialSummary = {};
+    subcategories.forEach((sub) => {
+      initialSummary[sub] = { male: 0, female: 0, transgender: 0 };
+    });
+
+    examinationDetails.forEach((detail) => {
+      // Robust filter: match result type, degree level, academic year, and year slot
+      if (
+        detail.result_type === activeTab &&
+        detail.degree_level === degreeLevel &&
+        detail.academic_year === selectedAcademicYear &&
+        detail.year === getYearSlots()[currentYearSlot]
+      ) {
+        const subcategory = detail.subcategory;
+        if (initialSummary[subcategory]) {
+          initialSummary[subcategory].male += Number(detail.male_count) || 0;
+          initialSummary[subcategory].female += Number(detail.female_count) || 0;
+          initialSummary[subcategory].transgender += Number(detail.transgender_count) || 0;
+        }
+      }
+    });
+
+    setSummaryData(initialSummary);
+  }, [examinationDetails, activeTab, degreeLevel, selectedAcademicYear, currentYearSlot]);
+
+  // Helper to get breakdown for selected subcategory and activeTab
+  function getSubcategoryBreakdown(subcategory) {
+    return categories.map(category => {
+      // Find all details for this subcategory, category, and activeTab
+      const detail = examinationDetails.find(
+        d =>
+          d.subcategory === subcategory &&
+          d.category === category &&
+          d.result_type === activeTab &&
+          d.degree_level === degreeLevel &&
+          d.academic_year === selectedAcademicYear
+      );
+      return {
+        category,
+        male: detail ? detail.male_count : 0,
+        female: detail ? detail.female_count : 0,
+        transgender: detail ? detail.transgender_count : 0,
+      };
+    });
+  }
+
+  // Summary calculation for selected resultType (including "Student Above 60%")
+  useEffect(() => {
+    const initialSummary = {};
+    subcategories.forEach((sub) => {
+      initialSummary[sub] = { male: 0, female: 0, transgender: 0 };
+    });
+
+    examinationDetails.forEach((detail) => {
+      if (
+        detail.result_type === resultType &&
+        detail.degree_level === degreeLevel &&
+        detail.academic_year === selectedAcademicYear &&
+        detail.year === getYearSlots()[currentYearSlot]
+      ) {
+        const subcategory = detail.subcategory;
+        if (initialSummary[subcategory]) {
+          initialSummary[subcategory].male += Number(detail.male_count) || 0;
+          initialSummary[subcategory].female += Number(detail.female_count) || 0;
+          initialSummary[subcategory].transgender += Number(detail.transgender_count) || 0;
+        }
+      }
+    });
+
+    setSummaryData(initialSummary);
+  }, [examinationDetails, resultType, degreeLevel, selectedAcademicYear, currentYearSlot]);
+
+  // Edit mode fetch for selected resultType (including "Student Above 60%")
+  const fetchExaminationDataForEdit = async (yearSlot, resultType) => {
+    try {
+      const res = await axios.get(API.student_examination(userData.dept_id), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+      });
+      if (res.data.success && Array.isArray(res.data.details)) {
+        const filtered = res.data.details.filter(
+          (row) =>
+            row.result_type === resultType &&
+            row.year === yearSlot &&
+            row.degree_level === degreeLevel &&
+            row.academic_year === selectedAcademicYear
+        );
+        const newData = {};
+        subcategories.forEach((sub) => {
+          newData[sub] = {};
+          categories.forEach((cat) => {
+            newData[sub][cat] = { Male: 0, Female: 0, Transgender: 0 };
+          });
+        });
+        filtered.forEach((row) => {
+          if (newData[row.subcategory] && newData[row.subcategory][row.category]) {
+            newData[row.subcategory][row.category] = {
+              Male: Number(row.male_count) || 0,
+              Female: Number(row.female_count) || 0,
+              Transgender: Number(row.transgender_count) || 0
+            };
+          }
+        });
+        setExaminationData(newData);
+      }
+    } catch {
+      setGlobalMessage({ type: 'error', text: 'Failed to fetch examination data for edit.' });
+    }
+  };
+
   return (
     <>
       <div className="space-y-8">
         {/* Header */}
+         {/* Academic Year Badge */}
+        <div className="flex justify-start mb-6">
+          <AcademicYearBadge year={selectedAcademicYear || academicYears?.[0] || ""} />
+        </div>
+
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-2xl font-bold text-gray-900">Add Examination Data</h3>
+            <h3 className="text-2xl font-bold text-gray-900">Student Examination</h3>
             <p className="text-sm text-gray-500 mt-1">Enter examination count by category and gender</p>
           </div>
           <span className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-medium shadow-md">
             {userData?.department}
           </span>
         </div>
-
         {/* Global Message */}
         {globalMessage && (
           <motion.div
@@ -679,32 +740,39 @@ export default function StudentExamination({ userData, yearSlots }) {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Degree Level
               </label>
-              <select
-                value={degreeLevel}
-                onChange={e => {
-                  setDegreeLevel(e.target.value);
-                  setCurrentYearSlot(0); // Reset year slot on degree change
-                }}
-                className="w-full px-4 py-2 border rounded-lg bg-white text-base"
-              >
-                <option value="UG">UG</option>
-                <option value="PG">PG</option>
-              </select>
+              {allowedDegreeLevels.length === 1 ? (
+                <input
+                  type="text"
+                  value={degreeLevel}
+                  readOnly
+                  className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-base cursor-not-allowed"
+                />
+              ) : (
+                <select
+                  value={degreeLevel}
+                  onChange={e => {
+                    setDegreeLevel(e.target.value);
+                    setCurrentYearSlot(0); // Reset year slot on degree change
+                  }}
+                  className="w-full px-4 py-2 border rounded-lg bg-white text-base"
+                >
+                  {allowedDegreeLevels.map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              )}
             </div>
-            {/* Year Slot Selector */}
+            {/* Year (single slot derived from degree level) */}
             <div className="flex-1 min-w-[180px] max-w-xs">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Year Slot
+                Year
               </label>
-              <select
+              <input
+                type="text"
                 value={getYearSlots()[currentYearSlot]}
-                onChange={e => setCurrentYearSlot(getYearSlots().indexOf(e.target.value))}
-                className="w-full px-4 py-2 border rounded-lg bg-white"
-              >
-                {getYearSlots().map((slot) => (
-                  <option key={slot} value={slot}>{slot}</option>
-                ))}
-              </select>
+                readOnly
+                className="w-full px-4 py-2 border rounded-lg bg-gray-100 text-base cursor-not-allowed"
+              />
             </div>
             {/* Result Type Selector */}
             <div className="flex-1 min-w-[180px] max-w-xs">
@@ -744,99 +812,99 @@ export default function StudentExamination({ userData, yearSlots }) {
             </div>
           </div>
 
-          {/* Year Completion Status - move here */}
-          <div className="mb-8">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <RiCheckboxCircleLine className="text-blue-600" />
-                  Year Completion Status
+          {/* Year Completion Status */}
+          <div className="bg-blue-50/60 rounded-2xl p-6 mb-8 shadow-sm border border-blue-100 flex flex-col gap-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100">
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" fill="#2563eb"/></svg>
                 </span>
-                <span className="text-sm text-blue-500 font-medium">
-                  Academic Year: <span className="font-semibold">{examStatusAcademicYear || 'N/A'}</span>
-                </span>
+                <h4 className="text-lg font-semibold text-blue-900">Year Completion Status</h4>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {getYearSlots().map((slot) => {
-                  // Use the same logic as student enrollment: status is 'finished' for completed
-                  const isCompleted = examYearCompletionStatus[slot] === 'completed';
-                  return (
-                    <div
-                      key={slot}
-                      className={`flex items-center gap-3 px-5 py-4 rounded-xl border transition-all duration-200 shadow-sm
-                        ${isCompleted
-                          ? 'bg-green-50 border-green-200'
-                          : 'bg-yellow-50 border-yellow-200'
-                        }`}
-                    >
-                      <div className={`flex items-center justify-center w-10 h-10 rounded-full
-                        ${isCompleted ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                        {isCompleted ? (
-                          <RiCheckboxCircleLine className="text-2xl text-green-600" />
-                        ) : (
-                          <RiBarChartBoxLine className="text-2xl text-yellow-500" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <div className="text-base font-semibold text-gray-800">{slot}</div>
-                        <div className={`mt-1 inline-block px-3 py-1 rounded-full text-xs font-bold
-                          ${isCompleted
-                            ? 'bg-green-200 text-green-800'
-                            : 'bg-yellow-200 text-yellow-800'
-                          }`}
-                        >
-                          {isCompleted ? 'Completed' : 'Incomplete'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {/* Show Final Declaration Button if all years are completed */}
-              {isAllExamYearsCompleted() && !isDeclarationLocked && (
-                <div className="flex justify-end mt-6">
-                  <button
-                    className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition"
-                    onClick={() => {
-                      setDeclarationYearSlot(getYearSlots());
-                      setShowDeclaration(true);
-                    }}
-                  >
-                    Final Submission
-                  </button>
-                </div>
-              )}
-              {isDeclarationLocked && (
-                <div className="flex justify-end mt-6">
-                  <span className="px-6 py-3 rounded-xl bg-gray-300 text-gray-600 font-semibold shadow">
-                    Final Submission Locked
+              <span className="text-sm text-blue-700 font-medium">Academic Year: {selectedAcademicYear || 'N/A'}</span>
+            </div>
+            <div className="flex gap-8 justify-center w-full">
+              {getYearSlots().map(year => (
+                <div
+                  key={year}
+                  className="flex flex-col items-center justify-center px-8 py-6 rounded-xl border shadow-sm"
+                  style={{
+                    minWidth: 180,
+                    maxWidth: 220,
+                    background: yearCompletionStatus[year] === 'Completed' ? '#f6fff4' : '#fffbe6',
+                    borderColor: yearCompletionStatus[year] === 'Completed' ? '#b7f5c2' : '#ffe9a7',
+                    boxShadow: '0 1px 6px 0 rgba(0,0,0,0.04)'
+                  }}
+                >
+                  <span className="mb-2">
+                    <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+                      <path d="M3 13h2v-2H3v2zm4 0h2v-2H7v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2z" fill="#fbbf24"/>
+                    </svg>
+                  </span>
+                  <span className="font-semibold text-base text-gray-900 mb-1">{year}</span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold ${yearCompletionStatus[year] === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {yearCompletionStatus[year] === 'Completed' ? 'Completed' : 'Incomplete'}
                   </span>
                 </div>
-              )}
+              ))}
             </div>
+            <button
+              disabled={
+                !getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') ||
+                isDeclarationLocked || finalSubmitSuccess // <-- disable if locked or just submitted
+              }
+              onClick={openDeclarationModal}
+              className={`mt-6 mx-auto py-3 px-8 rounded-lg font-semibold text-white transition-all duration-200
+                ${
+                  getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') &&
+                  !isDeclarationLocked &&
+                  !finalSubmitSuccess
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                    : 'bg-gray-400 cursor-not-allowed'
+                }`}
+              style={{
+                display: 'block',
+                margin: '0 auto',
+                minWidth: 320,
+                maxWidth: 600,
+                textAlign: 'center'
+              }}
+            >
+              Final Submission
+            </button>
           </div>
 
           {/* Categories Grid */}
-          <div className="grid grid-cols-1 gap-6">
-            {subcategories.map((subcategory) => (
-              <div key={subcategory}
-                className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-all duration-300">
-                <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-6 py-4 flex items-center">
-                  <h4 className="font-semibold text-lg">{subcategory}</h4>
+          <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
+            {['PwBD', 'Muslim Minority', 'Other Minority'].map(subcategory => (
+              <div
+                key={subcategory}
+                className="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100 hover:shadow-lg transition-all duration-300 mx-auto"
+                style={{
+                  minWidth: 380,
+                  maxWidth: 360,
+                  padding: "0.5rem 0.5rem",
+                  marginBottom: 0,
+                }}
+              >
+                <div className="bg-gradient-to-r from-[#07294d] to-[#104c8c] text-white px-4 py-2 flex items-center">
+                  <h4 className="font-semibold text-base">{subcategory}</h4>
                 </div>
-                <div className="p-6 space-y-6">
+                <div className="p-4 space-y-4">
                   {categories.map((category) => (
-                    <div key={category}
-                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-5 transition-all duration-200">
-                      <div className="flex items-center justify-between mb-4">
-                        <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors">
+                    <div
+                      key={category}
+                      className="group bg-gray-50 hover:bg-blue-50/50 rounded-xl p-3 transition-all duration-200"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-semibold text-gray-800 group-hover:text-blue-700 transition-colors text-sm">
                           {category}
                         </h5>
                       </div>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-3 gap-2">
                         {genders.map((gender) => (
-                          <div key={gender} className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-600">
+                          <div key={gender} className="space-y-1">
+                            <label className="block text-xs font-medium text-gray-600">
                               {gender}
                             </label>
                             <input
@@ -857,10 +925,10 @@ export default function StudentExamination({ userData, yearSlots }) {
                                   }
                                 }));
                               }}
-                              className="w-full px-4 py-2.5 rounded-lg border border-gray-200 
+                              className="w-full px-2 py-1.5 rounded-lg border border-gray-200 
                                 focus:ring-2 focus:ring-blue-500 focus:border-transparent
                                 bg-white shadow-sm transition-all duration-200
-                                hover:shadow group-hover:border-blue-200"
+                                hover:shadow group-hover:border-blue-200 text-xs"
                             />
                           </div>
                         ))}
@@ -892,31 +960,42 @@ export default function StudentExamination({ userData, yearSlots }) {
                   <span>Submitting...</span>
                 </div>
               ) : (
-                'Submit Examination Data'
+                'Submit'
               )}
             </button>
 
             {!isDeclarationLocked && (
-              <button
-                type="button"
-                disabled={updating}
-                onClick={handleUpdateExamination}
-                className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
-                  shadow-lg shadow-blue-500/20
-                  ${updating
-                    ? 'bg-gray-400 cursor-not-allowed'
+              <>
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={handleEditMode}
+                  className={`w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-white text-lg
+                    shadow-lg shadow-blue-500/20
+                    ${updating
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : isUpdateMode
+                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
+                        : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
+                    }
+                    transform transition-all duration-200 hover:-translate-y-0.5`}
+                >
+                  {updating
+                    ? 'Updating...'
                     : isUpdateMode
-                      ? 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700'
-                      : 'bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700'
-                  }
-                  transform transition-all duration-200 hover:-translate-y-0.5`}
-              >
-                {updating
-                  ? 'Updating...'
-                  : isUpdateMode
-                    ? 'Save Changes'
-                    : 'Edit Examination Data'}
-              </button>
+                      ? 'Save Changes'
+                      : 'Edit'}
+                </button>
+                {isUpdateMode && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="w-full md:w-auto max-w-md py-4 px-6 rounded-xl font-semibold text-gray-700 text-lg bg-gray-100 hover:bg-gray-200 shadow-lg transition-all"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </>
             )}
           </div>
         </form>
@@ -994,7 +1073,7 @@ export default function StudentExamination({ userData, yearSlots }) {
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-8 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Are you sure you want to submit {yearSlots[currentYearSlot]} student Examination Details?
+              Are you sure you want to submit {getYearSlots()[currentYearSlot]} student Examination Details?
             </h3>
             <div className="flex justify-end gap-4">
               <button
@@ -1008,7 +1087,6 @@ export default function StudentExamination({ userData, yearSlots }) {
                 onClick={async () => {
                   setShowConfirm(false);
                   await handleExaminationSubmit();
-                  await updateExaminationStatus('finished');
                 }}
               >
                 Finish
@@ -1059,12 +1137,18 @@ export default function StudentExamination({ userData, yearSlots }) {
                 <div>
                   <p className="text-sm font-medium text-gray-500">Completed Years</p>
                   <p className="text-lg font-semibold text-gray-900">
-                    {(declarationYearSlot || []).join(', ')}
+                    {Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot || ''}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Degree Level</p>
                   <p className="text-lg font-semibold text-gray-900">{degreeLevel}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">HOD Name</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1186,6 +1270,143 @@ export default function StudentExamination({ userData, yearSlots }) {
           </div>
         )}
       </motion.div>
+
+      {/* Summary Section */}
+      <div className="mt-12">
+        <div className="flex flex-col items-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-900">
+            Enrollment Summary ({degreeLevel})
+          </h3>
+        </div>
+        <div className="flex justify-center mb-6">
+          {/* Switch Tabs */}
+          <div className="flex space-x-2 bg-gray-200 p-1 rounded-lg">
+            {resultTypes.map(type => (
+              <button
+                key={type}
+                onClick={() => setActiveTab(type)}
+                className={`px-6 py-2 font-semibold rounded-md transition-colors ${
+                  activeTab === type
+                    ? 'bg-blue-600 text-white shadow'
+                    : 'bg-white text-blue-700 hover:bg-blue-50'
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Summary Display for selected tab */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {Object.entries(summaryData).map(([subcategory, counts]) => (
+            <div
+              key={subcategory}
+              className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 cursor-pointer hover:shadow-xl transition"
+              onClick={() => setEditingSubcategory(subcategory)}
+            >
+              <h4 className="font-bold text-lg text-blue-800 mb-4">{subcategory}</h4>
+              <div className="flex justify-around text-center">
+                <div>
+                  <p className="text-2xl font-bold text-blue-600">{counts.male}</p>
+                  <p className="text-sm text-gray-500">Male</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-pink-600">{counts.female}</p>
+                  <p className="text-sm text-gray-500">Female</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-purple-600">{counts.transgender}</p>
+                  <p className="text-sm text-gray-500">Transgender</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal for subcategory breakdown */}
+      {editingSubcategory && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setEditingSubcategory(null)}
+          style={{ transition: 'all 0.3s' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 40 }}
+            className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl p-0 max-w-xl w-full mx-4 border border-blue-100 relative"
+            onClick={e => e.stopPropagation()}
+            style={{
+              boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.18)',
+              border: '1px solid rgba(255,255,255,0.18)'
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <RiBarChartBoxLine className="text-3xl text-white" />
+                <h3 className="text-xl font-bold text-white">
+                  {editingSubcategory} - {getYearSlots()[currentYearSlot]} Breakdown
+                </h3>
+              </div>
+              <button
+                className="text-white text-2xl hover:text-blue-200 transition"
+                onClick={() => setEditingSubcategory(null)}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
+            {/* Table */}
+            <div className="px-8 py-6">
+              <table className="min-w-full text-base rounded-xl overflow-hidden shadow bg-white/90">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-100 to-indigo-100">
+                    <th className="px-4 py-2 text-left font-bold">Category</th>
+                    <th className="px-4 py-2 font-bold text-blue-700">Male</th>
+                    <th className="px-4 py-2 font-bold text-pink-700">Female</th>
+                    <th className="px-4 py-2 font-bold text-purple-700">Transgender</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const rows = getSubcategoryBreakdown(editingSubcategory);
+                    const hasData = rows.some(r => Number(r.male) > 0 || Number(r.female) > 0 || Number(r.transgender) > 0);
+                    if (!hasData) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="py-8 text-center text-gray-400">
+                            <RiBarChartBoxLine className="mx-auto text-4xl mb-2 text-blue-200" />
+                            <span>No data available for this subcategory and year.</span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    return rows.map(row => (
+                      <tr key={row.category} className="hover:bg-blue-50 transition">
+                        <td className="px-4 py-2 font-semibold">{row.category}</td>
+                        <td className="px-4 py-2 text-blue-700 font-bold">{row.male}</td>
+                        <td className="px-4 py-2 text-pink-700 font-bold">{row.female}</td>
+                        <td className="px-4 py-2 text-purple-700 font-bold">{row.transgender}</td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+            <div className="px-8 pb-6">
+              <button
+                className="w-full py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
+                onClick={() => setEditingSubcategory(null)}
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </>
   );
 }

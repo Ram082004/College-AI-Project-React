@@ -52,6 +52,9 @@ export default function Login({ onForgotClick, onLoginSuccess, onBack }) {
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
         localStorage.setItem('userType', 'admin');
+
+        // transient message for dashboard to show
+        try { localStorage.setItem('loginMessage', 'Login successful'); } catch(e) {}
         
         // Call success handler immediately
         setIsLoading(false);

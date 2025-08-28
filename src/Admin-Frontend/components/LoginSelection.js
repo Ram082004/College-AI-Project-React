@@ -144,7 +144,7 @@ export default function LoginSelection({ onSelect }) {
             transition={{ delay: 0.9 }}
             className="text-blue-200/80 text-sm mt-2 md:mt-0"
           >
-            Designed with <span className="text-red-400">♥</span> for Education
+            Designed with Team 7 <span className="text-red-400">♥</span>
           </motion.span>
         </div>
       </footer>

@@ -32,15 +32,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    console.log('Attempting login for:', username); // Debug log
-
     // Get user from database
     const [rows] = await pool.query(
       'SELECT * FROM admin WHERE username = ?',
       [username]
     );
-
-    console.log('Found users:', rows.length); // Debug log
 
     if (rows.length === 0) {
       return res.status(401).json({
@@ -51,10 +47,9 @@ exports.login = async (req, res) => {
 
     const user = rows[0];
 
-    // Since password is stored as plain text in database
-    // Compare directly instead of using bcrypt
-    if (password !== user.password) {
-      console.log('Password mismatch'); // Debug log
+    // Use bcrypt.compare to check password
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) {
       return res.status(401).json({
         success: false,
         message: 'Invalid username or password'
@@ -63,16 +58,11 @@ exports.login = async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { 
-        id: user.id, 
-        username: user.username 
-      },
+      { id: user.id, username: user.username },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Send successful response
-    console.log('Login successful for:', username); // Debug log
     res.json({
       success: true,
       message: 'Login successful',
@@ -85,7 +75,6 @@ exports.login = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({
       success: false,
       message: 'An error occurred during login'
@@ -93,216 +82,150 @@ exports.login = async (req, res) => {
   }
 };
 
-// Update the forgotPassword function with better error handling
+// Send OTP to admin email (email only)
 exports.forgotPassword = async (req, res) => {
-  const connection = await pool.getConnection();
-  
   try {
-    // Get admin email from database
-    const [admins] = await connection.query(
-      'SELECT email FROM admin LIMIT 1'
-    );
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ success: false, message: 'Email is required' });
 
-    if (admins.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No admin account found'
-      });
-    }
-
-    const adminEmail = admins[0].email;
-    // Mask email for privacy (e.g., j***@gmail.com)
-    const maskedEmail = adminEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3');
+    const [rows] = await pool.query('SELECT * FROM admin WHERE email = ?', [email.trim().toLowerCase()]);
+    const user = rows[0];
+    if (!user) return res.status(404).json({ success: false, message: 'No account found' });
 
     // Generate OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiryTime = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiryTime = new Date(Date.now() + 10 * 60 * 1000);
 
-    await connection.beginTransaction();
+    await pool.query('INSERT INTO password_resets (email, otp, expires_at, used) VALUES (?, ?, ?, 0)', [email, otp, expiryTime]);
 
-    // Delete existing OTPs
-    await connection.query(
-      'DELETE FROM password_resets WHERE email = ?',
-      [adminEmail]
-    );
+    // Mask email for UI
+    const maskedEmail = email.replace(/(.{2})(.*)(@.*)/, '$1***$3');
 
-    // Save new OTP
-    await connection.query(
-      'INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, ?)',
-      [adminEmail, otp, expiryTime]
-    );
-
-    // Send email
+    // Send OTP email (branded layout)
     const transporter = createTransporter();
     await transporter.sendMail({
-      from: `"Aishe System" <${process.env.EMAIL_USER}>`,
-      to: adminEmail,
-      subject: 'Password Reset Code',
+      from: `"GASCKK AISHE PORTAL" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'GASCKK AISHE PORTAL - Password Reset Code',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a365d;">Password Reset Code</h2>
-          <p>Your verification code is:</p>
-          <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-            <h1 style="color: #1a365d; letter-spacing: 5px; font-size: 32px; margin: 0;">${otp}</h1>
-          </div>
-          <p>This code will expire in 10 minutes.</p>
+        <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;padding:20px;background:#f7fafc;border-radius:8px;">
+          <header style="text-align:center;margin-bottom:18px;">
+            <h1 style="margin:0;color:#0b3b64">GASCKK AISHE PORTAL</h1>
+            <p style="margin:4px 0 0;color:#475569;font-size:14px">Password reset request</p>
+          </header>
+          <main style="background:white;padding:20px;border-radius:6px;text-align:center;">
+            <p style="color:#334155;margin:0 0 12px;">Use the code below to reset your password. It expires in 10 minutes.</p>
+            <div style="display:inline-block;padding:18px 28px;border-radius:8px;background:#eef2ff;color:#1e3a8a;font-size:28px;letter-spacing:6px;">
+              ${otp}
+            </div>
+            <p style="color:#64748b;margin-top:14px;font-size:13px;">If you didn't request this, ignore this email or contact admin.</p>
+          </main>
+          <footer style="text-align:center;margin-top:14px;font-size:12px;color:#94a3b8;">
+            © GASCKK AISHE PORTAL
+          </footer>
         </div>
       `
     });
 
-    await connection.commit();
-
-    res.json({
-      success: true,
-      message: 'Reset code sent successfully',
-      maskedEmail: maskedEmail
-    });
-
+    res.json({ success: true, message: 'Reset code sent successfully', maskedEmail });
   } catch (error) {
-    await connection.rollback();
-    console.error('Forgot password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send reset code'
-    });
-  } finally {
-    connection.release();
+    console.error('forgotPassword error:', error);
+    res.status(500).json({ success: false, message: 'Failed to send reset code' });
   }
 };
 
-const validatePassword = (password) => {
-  const minLength = 8;
-  const hasUpperCase = /[A-Z]/.test(password);
-  const hasLowerCase = /[a-z]/.test(password);
-  const hasNumber = /\d/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-  return password.length >= minLength && 
-         hasUpperCase && 
-         hasLowerCase && 
-         hasNumber && 
-         hasSpecialChar;
-};
-
-exports.resetPassword = async (req, res) => {
-  try {
-    const { otp, newPassword } = req.body;
-
-    if (!otp || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        message: 'OTP and new password are required'
-      });
-    }
-
-    if (!validatePassword(newPassword)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password does not meet security requirements'
-      });
-    }
-
-    // Get admin email from database
-    const [admins] = await pool.query(
-      'SELECT email FROM admin LIMIT 1'
-    );
-
-    if (admins.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin account not found'
-      });
-    }
-
-    const adminEmail = admins[0].email;
-
-    // Verify OTP
-    const [resets] = await pool.query(
-      'SELECT * FROM password_resets WHERE email = ? AND otp = ? AND expires_at > NOW() AND used = 0',
-      [adminEmail, otp]
-    );
-
-    if (resets.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired OTP'
-      });
-    }
-
-    // Update password in admin table
-    await pool.query(
-      'UPDATE admin SET password = ? WHERE email = ?',
-      [newPassword, adminEmail]
-    );
-
-    // Mark OTP as used
-    await pool.query(
-      'UPDATE password_resets SET used = 1 WHERE email = ? AND otp = ?',
-      [adminEmail, otp]
-    );
-
-    res.json({
-      success: true,
-      message: 'Password updated successfully'
-    });
-
-  } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'An error occurred while resetting your password'
-    });
-  }
-};
-
+// Verify OTP: Checks if OTP is valid but does NOT mark it as used
 exports.verifyOtp = async (req, res) => {
   try {
-    const { otp } = req.body;
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ success: false, message: 'Email and OTP are required' });
 
-    if (!otp) {
-      return res.status(400).json({
-        success: false,
-        message: 'OTP is required'
-      });
-    }
-
-    // Get admin email
-    const [admins] = await pool.query(
-      'SELECT email FROM admin LIMIT 1'
+    const [rows] = await pool.query(
+      'SELECT id FROM password_resets WHERE email = ? AND otp = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
+      [email.trim().toLowerCase(), otp.trim()]
     );
-
-    if (admins.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Admin account not found'
-      });
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
-    const adminEmail = admins[0].email;
-
-    // Check OTP validity
-    const [resets] = await pool.query(
-      'SELECT * FROM password_resets WHERE email = ? AND otp = ? AND expires_at > NOW() AND used = 0',
-      [adminEmail, otp]
-    );
-
-    if (resets.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired OTP'
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'OTP verified successfully'
-    });
-
+    // OTP is valid, allow frontend to proceed. DO NOT mark as used here.
+    res.json({ success: true, message: 'OTP verified' });
   } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to verify OTP'
+    console.error('verifyOtp error:', error);
+    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
+  }
+};
+
+// Reset password: Re-verifies OTP, resets password, THEN marks OTP as used
+exports.resetPassword = async (req, res) => {
+  try {
+    let { email, otp, newPassword } = req.body;
+    email = email ? String(email).trim().toLowerCase() : '';
+    otp = otp ? String(otp).trim() : '';
+    newPassword = newPassword ? String(newPassword) : '';
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, OTP and new password are required' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    }
+
+    // Re-verify the OTP to ensure it's still valid and unused
+    const [rows] = await pool.query(
+      'SELECT id FROM password_resets WHERE email = ? AND otp = ? AND used = 0 AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
+      [email, otp]
+    );
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'OTP not verified or expired. Please request a new one.' });
+    }
+    const resetId = rows[0].id;
+
+    // Update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const [result] = await pool.query('UPDATE admin SET password = ? WHERE email = ?', [hashedPassword, email]);
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Account not found' });
+    }
+
+    // NOW, mark the OTP as used so it cannot be reused
+    await pool.query('UPDATE password_resets SET used = 1 WHERE id = ?', [resetId]);
+
+    // Get username for confirmation email
+    const [userRows] = await pool.query('SELECT username, name FROM admin WHERE email = ?', [email]);
+    const user = userRows[0] || {};
+
+    // Send confirmation email
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from: `"GASCKK AISHE PORTAL" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'GASCKK AISHE PORTAL - Password Changed',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width:700px;margin:0 auto;padding:20px;background:#f7fafc;border-radius:8px;">
+          <header style="text-align:center;margin-bottom:18px;">
+            <h1 style="margin:0;color:#0b3b64">GASCKK AISHE PORTAL</h1>
+            <p style="margin:4px 0 0;color:#475569;font-size:14px">Password change confirmation</p>
+          </header>
+          <main style="background:white;padding:20px;border-radius:6px;">
+            <p style="color:#334155;">Hello ${user.name || user.username},</p>
+            <p style="color:#334155;">Your password has been changed successfully.</p>
+            <div style="background:#f1f5f9;padding:12px;border-radius:6px;margin:12px 0;">
+              <p style="margin:0;font-size:13px"><strong>Username:</strong> ${user.username}</p>
+              <p style="margin:0;font-size:13px"><strong>New Password:</strong> ${newPassword}</p>
+            </div>
+            <p style="color:#64748b;font-size:13px;">If you did not request this change, contact the administrator immediately.</p>
+          </main>
+          <footer style="text-align:center;margin-top:14px;font-size:12px;color:#94a3b8;">
+            © GASCKK AISHE PORTAL
+          </footer>
+        </div>
+      `
     });
+
+    res.json({ success: true, message: 'Password reset successfully. Confirmation email sent.' });
+  } catch (error) {
+    console.error('resetPassword error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reset password' });
   }
 };

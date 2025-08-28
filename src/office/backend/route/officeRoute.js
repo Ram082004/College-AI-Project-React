@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { officeLogin, forgotOfficePassword } = require('../controllers/officeController');
+const { officeLogin, forgotOfficePassword, verifyOfficeOtp, resetOfficePassword } = require('../controllers/officeController');
 const basicInformationController = require('../controllers/basicInformationController');
 const nonTeachingCtrl = require('../controllers/nonteachingcontrol');
+const teachingCtrl = require('../controllers/teachingcontrol');
+const officeSubmissionController = require('../controllers/nonTeachingFinalController');
+const teachingFinalController = require('../controllers/teachingFinalController');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -13,13 +16,8 @@ router.use((req, res, next) => {
 // Office routes
 router.post('/office-login', officeLogin);
 router.post('/office-forgot-password', forgotOfficePassword);
-// Add GET route to handle incorrect method
-router.get('/office-forgot-password', (req, res) => {
-  res.status(405).json({
-    success: false,
-    message: 'Method not allowed. Use POST request instead.'
-  });
-});
+router.post('/office-verify-otp', verifyOfficeOtp);
+router.post('/office-reset-password', resetOfficePassword);
 
 // Basic Information routes
 router.get('/basic-information', basicInformationController.getBasicInformation);
@@ -36,6 +34,22 @@ router.get('/non-teaching-staff/dropdowns', nonTeachingCtrl.getNonTeachingDropdo
 router.get('/non-teaching-staff', nonTeachingCtrl.getAllNonTeachingStaff);
 router.post('/non-teaching-staff', nonTeachingCtrl.addNonTeachingStaff);
 router.put('/non-teaching-staff/update-group', nonTeachingCtrl.updateNonTeachingStaffGroup);
-// Add update/delete routes as needed
+
+// Teaching Staff routes
+router.get('/teaching-staff', teachingCtrl.getAllTeachingStaff);
+router.post('/teaching-staff', teachingCtrl.addTeachingStaff);
+router.put('/teaching-staff/:id', teachingCtrl.updateTeachingStaff);
+router.get('/teaching-staff/academic-year', teachingCtrl.getAcademicYear);
+router.get('/teaching-staff/is-locked', teachingFinalController.getTeachingLockStatus);
+router.post('/teaching-staff/final-submit', teachingFinalController.finalTeachingSubmit);
+
+// Completion status for each group
+router.get('/non-teaching-staff/completion-status', officeSubmissionController.getCompletionStatus);
+
+// Lock status for academic year
+router.get('/non-teaching-staff/is-locked', officeSubmissionController.getLockStatus);
+
+// Final submission (lock + declaration)
+router.post('/non-teaching-staff/final-submit', officeSubmissionController.finalSubmit);
 
 module.exports = router;

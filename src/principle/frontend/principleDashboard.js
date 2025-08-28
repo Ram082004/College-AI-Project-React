@@ -1,53 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   RiDashboardLine,
   RiLogoutBoxLine,
-  RiSearchLine,
-  RiFileListLine,
   RiUpload2Line,
-  RiUserSettingsLine,
   RiBuilding2Line,
-  RiBarChartBoxLine,
-  RiTeamLine,
-  RiGovernmentLine
+  RiGovernmentLine,
+  RiUserSettingsLine
 } from 'react-icons/ri';
-import axios from 'axios';
-import PrincipleDeptDetails from './principledept';
+
 import PrincipleSubmission from './principleSubmission';
+import PrincipleOfficeDetails from './principleofficedetails';
+import PrincipleOfficeSubmission from './principleofficesubmission';
+import PrincipleDeptDetails from './principledept';
+import PrincipleWelcomeDashboard from './principlewelcomedashboard';
 
-const API_BASE = 'http://localhost:5000/api/principle';
-const API = {
-  DEPARTMENTS: `${API_BASE}/departments`,
-  DEPARTMENTS_LIST: 'http://localhost:5000/api/principle/departments-list',
-  DEPARTMENT_DETAILS: (deptId) => `http://localhost:5000/api/principle/department-details/${deptId}`,
-};
-
-export default function PrincipleDashboard() {
+function PrincipleDashboard() {
   const [userData, setUserData] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('departmentStatus');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [loginMessage, setLoginMessage] = useState(null);
 
-  // Institution specific states
-  const [recentReports, setRecentReports] = useState([]);
-  // Static master list for all departments (edit as needed)
-  const departmentMasterList = [
-    { dept_id: 1, department: 'B.C.A' },
-    { dept_id: 2, department: 'B.A ENGLISH' },
-    { dept_id: 3, department: 'M.A ENGLISH' },
-    { dept_id: 4, department: 'BBA' },
-    { dept_id: 5, department: 'B.COM' },
-    { dept_id: 6, department: 'B.SC MATHS' },
-    { dept_id: 7, department: 'M.SC MATHS' },
-    { dept_id: 8, department: 'B.SC CHEMISTRY' },
-    { dept_id: 9, department: 'M.COM' },
-    { dept_id: 10, department: 'B.SC PHYSICS' }
-  ];
-  const [departments, setDepartments] = useState([]);
-  const [selectedDept, setSelectedDept] = useState(null);
+  // Office/Dept sidebar
+  const [activeSidebar, setActiveSidebar] = useState('principal'); // Default to welcome dashboard
+
 
   useEffect(() => {
     const storedUser = localStorage.getItem('principleUser');
@@ -59,27 +36,13 @@ export default function PrincipleDashboard() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'departmentStatus') {
-      axios.get(API.DEPARTMENTS_LIST)
-        .then(res => {
-          if (res.data.success && Array.isArray(res.data.departments)) {
-            // Merge backend list with master list, prefer master for display
-            const backendDepts = res.data.departments;
-            // Map by department name (case-insensitive)
-            const backendMap = new Map(backendDepts.map(d => [(d.department || '').toUpperCase(), d]));
-            const merged = departmentMasterList.map(master => {
-              const found = backendMap.get(master.department.toUpperCase());
-              return found ? { ...master, ...found } : master;
-            });
-            setDepartments(merged);
-          } else {
-            setDepartments(departmentMasterList);
-          }
-        })
-        .catch(() => setDepartments(departmentMasterList));
+    const msg = localStorage.getItem("principleLoginMessage");
+    if (msg) {
+      setLoginMessage(msg);
+      localStorage.removeItem("principleLoginMessage");
+      setTimeout(() => setLoginMessage(null), 3500);
     }
-  }, [activeTab]);
-
+  }, []);
 
 
   const handleLogout = () => {
@@ -91,7 +54,31 @@ export default function PrincipleDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Login Success Message */}
+      
+      <AnimatePresence>
+        {loginMessage && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: -40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -40 }}
+            transition={{ duration: 0.6, type: "spring" }}
+            className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-2xl shadow-2xl text-xl font-bold"
+          >
+            Login successful!
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {loginMessage && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="px-5 py-3 rounded-xl bg-green-600 text-white font-semibold shadow-lg">
+            {loginMessage}
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
+    
       <motion.div 
         initial={{ x: -300 }}
         animate={{ x: sidebarOpen ? 0 : -300 }}
@@ -115,19 +102,19 @@ export default function PrincipleDashboard() {
           <nav className="space-y-2">
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('overview')}
+              onClick={() => setActiveSidebar('principal')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'overview' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
+                activeSidebar === 'principal' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <RiDashboardLine className="text-xl" />
-              <span>Overview</span>
+              <span>Dashboard</span>
             </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('departmentStatus')}
+              onClick={() => setActiveSidebar('department')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'departmentStatus' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
+                activeSidebar === 'department' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <RiBuilding2Line className="text-xl" />
@@ -135,13 +122,33 @@ export default function PrincipleDashboard() {
             </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('submission')}
+              onClick={() => setActiveSidebar('officeDetails')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'submission' ? 'bg-teal-50 text-teal-600' : 'text-gray-600 hover:bg-gray-50'
+                activeSidebar === 'officeDetails' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-blue-50'
+              }`}
+            >
+              <RiUserSettingsLine className="text-xl" />
+              <span>Office Details</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveSidebar('officeSubmission')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeSidebar === 'officeSubmission' ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-green-50'
               }`}
             >
               <RiUpload2Line className="text-xl" />
-              <span>Submission</span>
+              <span>Office Submission</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveSidebar('departmentSubmission')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeSidebar === 'departmentSubmission' ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-indigo-50'
+              }`}
+            >
+              <RiUpload2Line className="text-xl" />
+              <span>Dept Submission</span>
             </motion.button>
           </nav>
         </div>
@@ -161,6 +168,7 @@ export default function PrincipleDashboard() {
       {/* Main Content */}
       <div className={`flex-1 ${sidebarOpen ? 'ml-72' : 'ml-0'} transition-all duration-300`}>
         {/* Top Navigation */}
+        
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
@@ -170,12 +178,16 @@ export default function PrincipleDashboard() {
               >
                 <RiDashboardLine className="text-xl text-gray-600" />
               </button>
-
-              {/* Search option removed as per request */}
-
+              {/* Centered Portal Title */}
+              <div className="flex-1 flex justify-center">
+                <div className="text-4xl md:text-3xl font-bold tracking-tight text-center bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent drop-shadow-lg uppercase">
+                  GASCKK AISHE PORTAL
+                </div>
+              </div>
+              {/* Right Side User Info */}
               <div className="flex items-center space-x-4">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{userData?.name}</p>
+                  <div className="text-base font-bold text-gray-900">{userData?.name}</div>
                   <p className="text-xs text-gray-500">Principal</p>
                 </div>
                 <div className="h-8 w-8 rounded-full bg-teal-600 flex items-center justify-center text-white font-medium">
@@ -185,62 +197,34 @@ export default function PrincipleDashboard() {
             </div>
           </div>
         </div>
-
-        {/* Main Content Area */}
-        <div className="max-w-7xl mx-auto px-6 py-8">
-
-
-          {/* Department Status Tab Content */}
-          {activeTab === 'departmentStatus' && (
+          {activeSidebar === 'principal' && (
             <div className="mt-8">
-              <h2 className="text-2xl font-extrabold text-center text-gradient bg-gradient-to-r from-teal-600 via-blue-500 to-purple-600 bg-clip-text text-transparent mb-8">Departments</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {departments.length === 0 ? (
-                  <div className="col-span-full text-center text-gray-400 py-8">No departments found.</div>
-                ) : (
-                  departments.map((dept, idx) => (
-                    <motion.div
-                      key={dept.dept_id + '-' + idx}
-                      whileHover={{ scale: 1.04 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={`relative bg-gradient-to-br from-white via-blue-50 to-teal-50 p-4 rounded-2xl shadow-lg cursor-pointer transition-all border-2 ${
-                        selectedDept === dept.dept_id ? 'border-teal-500 ring-2 ring-teal-300' : 'border-gray-100 hover:border-teal-400'
-                      } group`}
-                      onClick={() => setSelectedDept(dept.dept_id)}
-                    >
-                      <div className="flex flex-col items-center justify-center h-full min-h-[70px]">
-                        <span className="block text-xs uppercase tracking-widest text-teal-500 font-bold mb-1">Department</span>
-                        <h3 className="text-base font-extrabold text-gray-800 mb-1 text-center group-hover:text-teal-700 transition-all">{dept.department || dept.dept_name || 'Department'}</h3>
-                        <div className="flex flex-col items-center mt-1">
-                          <span className="text-xs text-gray-400">{dept.head_of_department || ''}</span>
-                          <span className="text-xs text-gray-400">{dept.contact_number || ''}</span>
-                        </div>
-                      </div>
-                      {selectedDept === dept.dept_id && (
-                        <span className="absolute top-2 right-2 bg-teal-500 text-white text-xs px-2 py-1 rounded-full shadow">Selected</span>
-                      )}
-                    </motion.div>
-                  ))
-                )}
-              </div>
-
-              {/* Department Details Component */}
-              {selectedDept && (
-                <div className="mt-8">
-                  <PrincipleDeptDetails deptId={selectedDept} />
-                </div>
-              )}
+              <PrincipleWelcomeDashboard />
             </div>
           )}
-
-          {/* Submission Tab Content */}
-          {activeTab === 'submission' && (
+          {activeSidebar === 'department' && (
+            <div className="mt-8">
+              <PrincipleDeptDetails />
+            </div>
+          )}
+          {activeSidebar === 'officeDetails' && (
+            <div className="mt-8">
+              <PrincipleOfficeDetails />
+            </div>
+          )}
+          {activeSidebar === 'officeSubmission' && (
+            <div className="mt-8">
+              <PrincipleOfficeSubmission />
+            </div>
+          )}
+          {activeSidebar === 'departmentSubmission' && (
             <div className="mt-8">
               <PrincipleSubmission />
             </div>
           )}
-        </div>
+        
       </div>
+      
 
       {/* Global Message Toast */}
       <AnimatePresence>
@@ -262,3 +246,5 @@ export default function PrincipleDashboard() {
     </div>
   );
 }
+
+export default PrincipleDashboard;

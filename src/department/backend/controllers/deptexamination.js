@@ -52,6 +52,14 @@ exports.addExaminationData = async (req, res) => {
       success: true,
       message: 'Examination data added successfully'
     });
+    // After successful commit, update year status to 'Completed'
+    if (records && records.length > 0) {
+      const { dept_id, year, academic_year, degree_level } = records[0];
+      await pool.query(
+        'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ? AND degree_level = ?',
+        ['Completed', dept_id, year, academic_year, degree_level]
+      );
+    }
   } catch (error) {
     await connection.rollback();
     res.status(500).json({
@@ -111,16 +119,16 @@ exports.getExaminationDetails = async (req, res) => {
 // Update status for examination records
 exports.updateExaminationStatus = async (req, res) => {
   try {
-    const { dept_id, year, status } = req.body;
-    if (!dept_id || !year || !status) {
+    const { dept_id, year, status, academic_year, degree_level } = req.body;
+    if (!dept_id || !year || !status || !academic_year || !degree_level) {
       return res.status(400).json({
         success: false,
-        message: 'dept_id, year, and status are required'
+        message: 'dept_id, year, status, academic_year, and degree_level are required'
       });
     }
     await pool.query(
-      'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ?',
-      [status, dept_id, year, academic_year]
+      'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ? AND degree_level = ?',
+      [status, dept_id, year, academic_year, degree_level]
     );
     res.json({ success: true, message: `Status updated to ${status}` });
   } catch (error) {
@@ -176,6 +184,14 @@ exports.updateExaminationData = async (req, res) => {
 
     await connection.commit();
     res.json({ success: true, message: 'Examination data updated successfully' });
+    // After successful update, update year status to 'Completed'
+    if (records && records.length > 0) {
+      const { dept_id, year, academic_year, degree_level } = records[0];
+      await pool.query(
+        'UPDATE student_examination SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ? AND degree_level = ?',
+        ['Completed', dept_id, year, academic_year, degree_level]
+      );
+    }
   } catch (error) {
     await connection.rollback();
     res.status(500).json({ success: false, message: 'Failed to update examination data', error: error.message });
@@ -191,11 +207,17 @@ exports.submitExaminationDeclaration = async (req, res) => {
     if (!dept_id || !name || !department || !year || !type || !hod || !degree_level || !academic_year) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
+    // Delete previous submission for this dept/year/type/degree_level/academic_year
+    await pool.query(
+      `DELETE FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? AND academic_year = ?`,
+      [dept_id, year, type, degree_level, academic_year]
+    );
+    // Insert new submission
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, hod, degree_level, academic_year, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type, hod, degree_level, academic_year]
+       (dept_id, name, department, year, type, hod, degree_level, academic_year, submitted_at, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      [dept_id, name, department, year, type, hod, degree_level, academic_year, 'Completed']
     );
     res.json({ success: true, message: 'Examination declaration submitted successfully' });
   } catch (error) {
@@ -240,75 +262,30 @@ exports.getDeclarationLockStatus = async (req, res) => {
   }
 };
 
-// Controller to get examination year statuses
+// Get examination year statuses
 exports.getExaminationYearStatuses = async (req, res) => {
   try {
     const { deptId } = req.params;
-    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
-    if (!deptId) {
-      return res.status(400).json({ success: false, message: 'Department ID is required' });
-    }
-    const [years] = await pool.query(
-      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
-      [deptId]
-    );
-    const academicYear = years[0]?.academic_year;
-    if (!academicYear) {
-      return res.json({ success: false, statuses: [] });
+    const { degree_level, academic_year } = req.query;
+    const yearSlots = degree_level === 'UG' ? ['I Year', 'II Year', 'III Year'] : ['I Year', 'II Year'];
+    if (!deptId || !degree_level || !academic_year) {
+      return res.status(400).json({ success: false, message: 'Missing parameters' });
     }
     const [rows] = await pool.query(
-      `SELECT year, status FROM student_examination WHERE dept_id = ? AND academic_year = ?`,
-      [deptId, academicYear]
+      `SELECT year, status FROM student_examination WHERE dept_id = ? AND degree_level = ? AND academic_year = ?`,
+      [deptId, degree_level, academic_year]
     );
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    const normalizeStatus = (status) => status.trim().toLowerCase();
     const statusMap = {};
     rows.forEach(r => {
-      statusMap[normalizeYear(r.year)] = normalizeStatus(r.status);
+      statusMap[r.year] = r.status;
     });
-    yearSlots.forEach(y => {
-      const key = normalizeYear(y);
-      if (!statusMap[key]) statusMap[key] = 'incomplete';
-    });
-    res.json({ success: true, statuses: statusMap, academicYear });
+    const result = yearSlots.map(year => ({
+      year,
+      status: statusMap[year] === 'Completed' ? 'Completed' : 'Incompleted'
+    }));
+    res.json({ success: true, statuses: result });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch year statuses' });
   }
 };
 
-// Controller for examination year completion status
-exports.getExaminationYearCompletionStatus = async (req, res) => {
-  try {
-    const { deptId } = req.params;
-    const { degree_level } = req.query;
-    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
-    if (!deptId || !degree_level) {
-      return res.status(400).json({ success: false, message: 'Department ID and degree_level are required' });
-    }
-    // Get latest academic year for this department
-    const [years] = await pool.query(
-      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
-      [deptId]
-    );
-    const academicYear = years[0]?.academic_year;
-    if (!academicYear) {
-      return res.json({ success: true, statuses: {}, academicYear: null });
-    }
-    // For each year, check if there is at least one record and status is 'finished' for the degree_level
-    const result = {};
-    for (const year of yearSlots) {
-      const [rows] = await pool.query(
-        `SELECT status FROM student_examination WHERE dept_id = ? AND academic_year = ? AND year = ? AND degree_level = ? LIMIT 1`,
-        [deptId, academicYear, year, degree_level]
-      );
-      if (rows.length > 0 && rows[0].status && rows[0].status.trim().toLowerCase() === 'finished') {
-        result[year] = 'completed'; // <-- CHANGE THIS LINE
-      } else {
-        result[year] = 'incomplete';
-      }
-    }
-    res.json({ success: true, statuses: result, academicYear });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
-  }
-};

@@ -1,4 +1,5 @@
 const { pool } = require('../../config/db');
+const bcrypt = require('bcrypt');
 
 // Fetch all department users
 exports.getAllDepartmentUsers = async (req, res) => {
@@ -50,19 +51,14 @@ exports.addDepartmentUser = async (req, res) => {
       return res.status(409).json({ success: false, message: 'Username or Email already exists' });
     }
 
-    const [result] = await pool.query(
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await pool.query(
       'INSERT INTO department_users (name, username, email, mobile, department, dept_id, academic_year, degree_level, password, locked, hod) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)',
-      [name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod]
+      [name, username, email, mobile, department, dept_id, academic_year, degree_level, hashedPassword, hod]
     );
-
-    if (result.affectedRows > 0) {
-      res.json({ success: true, message: 'Department user added successfully' });
-    } else {
-      res.status(500).json({ success: false, message: 'Failed to add department user' });
-    }
+    res.json({ success: true, message: 'Department user added successfully' });
   } catch (error) {
-    console.error('Error adding department user:', error);
-    res.status(500).json({ success: false, message: 'An error occurred while adding the user', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to add department user', error: error.message });
   }
 };
 
@@ -86,9 +82,10 @@ exports.updateDepartmentUser = async (req, res) => {
     }
 
     if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
       await pool.query(
         'UPDATE department_users SET name = ?, username = ?, email = ?, mobile = ?, department = ?, dept_id = ?, academic_year = ?, degree_level = ?, password = ?, hod = ? WHERE id = ?',
-        [name, username, email, mobile, department, dept_id, academic_year, degree_level, password, hod, id]
+        [name, username, email, mobile, department, dept_id, academic_year, degree_level, hashedPassword, hod, id]
       );
     } else {
       await pool.query(
@@ -99,7 +96,6 @@ exports.updateDepartmentUser = async (req, res) => {
 
     res.json({ success: true, message: 'Department user updated successfully' });
   } catch (error) {
-    console.error('Error updating department user:', error);
     res.status(500).json({ success: false, message: 'Failed to update department user', error: error.message });
   }
 };
@@ -154,6 +150,90 @@ exports.getDistinctAcademicYears = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to fetch academic years' });
   }
 };
+
+// NEW FUNCTION TO ADD
+exports.getDepartmentUserDetails = async (req, res) => {
+  try {
+    const { deptId } = req.params;
+
+    // Get latest academic year for this department
+    const [yearRows] = await pool.query(
+      'SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1',
+      [deptId]
+    );
+    const academic_year = yearRows.length > 0 ? yearRows[0].academic_year : null;
+
+    if (!academic_year) {
+      return res.json({
+        success: true,
+        academic_year: null,
+        enrollmentDetails: [],
+        examinationDetails: [],
+        degree_levels: ['UG', 'PG']
+      });
+    }
+
+    // Enrollment details: aggregate counts by year, degree_level, category, subcategory
+    const [enrollmentDetails] = await pool.query(
+      `SELECT 
+        se.year,
+        se.degree_level,
+        cm.name as category,
+        scm.name as subcategory,
+        SUM(CASE WHEN gm.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN gm.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN gm.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_enrollment se
+      JOIN category_master cm ON se.category_id = cm.id
+      JOIN category_master scm ON se.subcategory_id = scm.id
+      JOIN gender_master gm ON se.gender_id = gm.id
+      WHERE se.dept_id = ? AND se.academic_year = ?
+      GROUP BY se.year, se.degree_level, cm.name, scm.name
+      ORDER BY se.year, se.degree_level, cm.name, scm.name`,
+      [deptId, academic_year]
+    );
+
+    // Examination details: aggregate counts by year, degree_level, category, subcategory, result_type
+    const [examinationDetails] = await pool.query(
+      `SELECT 
+        se.year,
+        se.degree_level,
+        cm.name as category,
+        scm.name as subcategory,
+        se.result_type,
+        SUM(CASE WHEN gm.name = 'Male' THEN se.count ELSE 0 END) as male_count,
+        SUM(CASE WHEN gm.name = 'Female' THEN se.count ELSE 0 END) as female_count,
+        SUM(CASE WHEN gm.name = 'Transgender' THEN se.count ELSE 0 END) as transgender_count
+      FROM student_examination se
+      JOIN category_master cm ON se.category_id = cm.id
+      JOIN category_master scm ON se.subcategory_id = scm.id
+      JOIN gender_master gm ON se.gender_id = gm.id
+      WHERE se.dept_id = ? AND se.academic_year = ?
+      GROUP BY se.year, se.degree_level, cm.name, scm.name, se.result_type
+      ORDER BY se.year, se.degree_level, cm.name, scm.name, se.result_type`,
+      [deptId, academic_year]
+    );
+
+    // Get degree levels for this department
+    const [degreeLevelsResult] = await pool.query(
+      'SELECT DISTINCT degree_level FROM department_users WHERE dept_id = ?',
+      [deptId]
+    );
+    const degree_levels = degreeLevelsResult.map(row => row.degree_level);
+
+    res.json({
+      success: true,
+      academic_year,
+      enrollmentDetails,
+      examinationDetails,
+      degree_levels: degree_levels.length > 0 ? degree_levels : ['UG']
+    });
+  } catch (error) {
+    console.error(`Error fetching details for deptId ${req.params.deptId}:`, error);
+    res.status(500).json({ success: false, message: 'Failed to fetch department details' });
+  }
+};
+
 
 exports.getStudentEnrollmentSummary = async (req, res) => {
   try {

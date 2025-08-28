@@ -1,3 +1,18 @@
+async function recalculateEnrollmentYearStatuses(dept_id, academic_year, degree_level) {
+  const yearSlots = ['I Year', 'II Year', 'III Year'];
+  for (const year of yearSlots) {
+    const [rows] = await pool.query(
+      `SELECT COUNT(*) as cnt FROM student_enrollment WHERE dept_id = ? AND academic_year = ? AND degree_level = ? AND year = ?`,
+      [dept_id, academic_year, degree_level, year]
+    );
+    const status = (rows[0].cnt > 0) ? 'Completed' : 'Incompleted';
+    await pool.query(
+      `UPDATE student_enrollment SET status = ? WHERE dept_id = ? AND academic_year = ? AND degree_level = ? AND year = ?`,
+      [status, dept_id, academic_year, degree_level, year]
+    );
+  }
+}
+
 const { pool } = require('../../../Admin/backend/config/db');
 const nodemailer = require('nodemailer');
 
@@ -56,9 +71,9 @@ exports.addEnrollmentData = async (req, res) => {
       ) {
         await connection.query(
           `INSERT INTO student_enrollment 
-           (academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, degree_level)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, degree_level]
+           (academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, degree_level, status)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [academic_year, dept_id, category_id, subcategory_id, gender_id, count, year, degree_level, 'Completed']
         );
       } else {
         console.warn('Skipping invalid record:', record);
@@ -70,6 +85,14 @@ exports.addEnrollmentData = async (req, res) => {
       success: true,
       message: 'Enrollment data added successfully'
     });
+    // After successful commit, update year status to 'Completed'
+    if (records && records.length > 0) {
+      const { dept_id, year, academic_year, degree_level } = records[0];
+      await pool.query(
+        'UPDATE student_enrollment SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ? AND degree_level = ?',
+        ['Completed', dept_id, year, academic_year, degree_level]
+      );
+    }
   } catch (error) {
     await connection.rollback();
     res.status(500).json({
@@ -100,6 +123,7 @@ exports.getStudentDetails = async (req, res) => {
         sd.degree_level,
         c.name as category,
         sc.name as subcategory,
+        sd.status,  -- ADD THIS LINE
         SUM(CASE WHEN g.name = 'Male' THEN sd.count ELSE 0 END) as male_count,
         SUM(CASE WHEN g.name = 'Female' THEN sd.count ELSE 0 END) as female_count,
         SUM(CASE WHEN g.name = 'Transgender' THEN sd.count ELSE 0 END) as transgender_count
@@ -108,7 +132,7 @@ exports.getStudentDetails = async (req, res) => {
       JOIN category_master sc ON sd.subcategory_id = sc.id
       JOIN gender_master g ON sd.gender_id = g.id
       WHERE sd.dept_id = ?
-      GROUP BY sd.academic_year, sd.year, sd.degree_level, c.name, sc.name
+      GROUP BY sd.academic_year, sd.year, sd.degree_level, c.name, sc.name, sd.status  -- ADD sd.status HERE
       ORDER BY sd.academic_year DESC, sd.year ASC, sd.degree_level ASC`,
       [deptId]
     );
@@ -169,6 +193,14 @@ exports.updateEnrollmentData = async (req, res) => {
 
     await connection.commit();
     res.json({ success: true, message: 'Enrollment data updated successfully' });
+    // After successful update, set year status to 'Completed'
+    if (records && records.length > 0) {
+      const { dept_id, year, academic_year, degree_level } = records[0];
+      await pool.query(
+        'UPDATE student_enrollment SET status = ? WHERE dept_id = ? AND year = ? AND academic_year = ? AND degree_level = ?',
+        ['Completed', dept_id, year, academic_year, degree_level]
+      );
+    }
   } catch (error) {
     await connection.rollback();
     res.status(500).json({ success: false, message: 'Failed to update enrollment data', error: error.message });
@@ -183,6 +215,11 @@ exports.updateEnrollmentStatus = async (req, res) => {
     const { dept_id, year, status } = req.body;
     if (!dept_id || !year || !status) {
       return res.status(400).json({ success: false, message: 'dept_id, year, and status are required' });
+    }
+    // Only allow 'Completed' or 'Incompleted' as status
+    const allowed = ['Completed', 'Incompleted'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status value' });
     }
     await pool.query(
       'UPDATE student_enrollment SET status = ? WHERE dept_id = ? AND year = ?',
@@ -214,11 +251,17 @@ exports.submitEnrollmentDeclaration = async (req, res) => {
     if (!dept_id || !name || !department || !year || !type || !hod || !degree_level || !academic_year) {
       return res.status(400).json({ success: false, message: 'All fields are required' });
     }
+    // Delete previous submission for this dept/year/type/degree_level/academic_year
+    await pool.query(
+      `DELETE FROM submitted_data WHERE dept_id = ? AND year = ? AND type = ? AND degree_level = ? AND academic_year = ?`,
+      [dept_id, year, type, degree_level, academic_year]
+    );
+    // Insert new submission
     await pool.query(
       `INSERT INTO submitted_data 
-       (dept_id, name, department, year, type, hod, degree_level, academic_year, submitted_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [dept_id, name, department, year, type, hod, degree_level, academic_year]
+       (dept_id, name, department, year, type, hod, degree_level, academic_year, submitted_at, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)`,
+      [dept_id, name, department, year, type, hod, degree_level, academic_year, 'Completed']
     );
     res.json({ success: true, message: 'Enrollment declaration submitted successfully' });
   } catch (error) {
@@ -263,75 +306,22 @@ exports.getDeclarationLockStatus = async (req, res) => {
   }
 };
 
-// Get enrollment year statuses
-exports.getEnrollmentYearStatuses = async (req, res) => {
+
+// Get allowed degree levels for a department
+exports.getAllowedDegreeLevels = async (req, res) => {
   try {
     const { deptId } = req.params;
-    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
     if (!deptId) {
       return res.status(400).json({ success: false, message: 'Department ID is required' });
     }
-    const [years] = await pool.query(
-      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
-      [deptId]
-    );
-    const academicYear = years[0]?.academic_year;
-    if (!academicYear) {
-      return res.json({ success: false, statuses: [] });
-    }
+    // Query all unique degree levels for this department
     const [rows] = await pool.query(
-      `SELECT year, status FROM student_enrollment WHERE dept_id = ? AND academic_year = ?`,
-      [deptId, academicYear]
-    );
-    const normalizeYear = (year) => year.trim().replace(/\s+/g, ' ').toLowerCase();
-    const normalizeStatus = (status) => status.trim().toLowerCase();
-    const statusMap = {};
-    rows.forEach(r => {
-      statusMap[normalizeYear(r.year)] = normalizeStatus(r.status);
-    });
-    yearSlots.forEach(y => {
-      const key = normalizeYear(y);
-      if (!statusMap[key]) statusMap[key] = 'incomplete';
-    });
-    res.json({ success: true, statuses: statusMap, academicYear });
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch year statuses', error: error.message });
-  }
-};
-
-// New controller for enrollment year completion status
-exports.getEnrollmentYearCompletionStatus = async (req, res) => {
-  try {
-    const { deptId } = req.params;
-    const { degree_level } = req.query;
-    const yearSlots = req.query.years ? req.query.years.split(',') : ['I Year', 'II Year', 'III Year'];
-    if (!deptId || !degree_level) {
-      return res.status(400).json({ success: false, message: 'Department ID and degree_level are required' });
-    }
-    // Get latest academic year for this department
-    const [years] = await pool.query(
-      `SELECT academic_year FROM department_users WHERE dept_id = ? ORDER BY academic_year DESC LIMIT 1`,
+      `SELECT DISTINCT degree_level FROM department_users WHERE dept_id = ?`,
       [deptId]
     );
-    const academicYear = years[0]?.academic_year;
-    if (!academicYear) {
-      return res.json({ success: true, statuses: {}, academicYear: null });
-    }
-    // For each year, check if there is at least one record and status is 'finished' for the degree_level
-    const result = {};
-    for (const year of yearSlots) {
-      const [rows] = await pool.query(
-        `SELECT status FROM student_enrollment WHERE dept_id = ? AND academic_year = ? AND year = ? AND degree_level = ? LIMIT 1`,
-        [deptId, academicYear, year, degree_level]
-      );
-      if (rows.length > 0 && rows[0].status && rows[0].status.trim().toLowerCase() === 'finished') {
-        result[year] = 'completed';
-      } else {
-        result[year] = 'incomplete';
-      }
-    }
-    res.json({ success: true, statuses: result, academicYear });
+    const degreeLevels = rows.map(r => r.degree_level).filter(Boolean);
+    res.json({ success: true, degree_levels: degreeLevels });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Failed to fetch year completion status', error: error.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch degree levels', error: error.message });
   }
 };

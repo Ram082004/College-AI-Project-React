@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import AcademicYearBadge from "./AcademicYearBadge";
 
 const API_BASE = 'http://localhost:5000/api';
 const API = {
@@ -10,7 +11,7 @@ const API = {
   OFFICE_USER_LOCK: (id) => `${API_BASE}/office-user/${id}/lock`,
 };
 
-export default function Office() {
+export default function Admin({ adminAcademicYear }) {
   const [officeUsers, setOfficeUsers] = useState([]);
   const [officeUserEditId, setOfficeUserEditId] = useState(null);
   const [officeUserEditForm, setOfficeUserEditForm] = useState({
@@ -34,6 +35,9 @@ export default function Office() {
   const [officeUserLoading, setOfficeUserLoading] = useState(false);
   const [showOfficeUserForm, setShowOfficeUserForm] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [latestAcademicYear, setLatestAcademicYear] = useState("");
+
+  const academicYearOptions = ['2024-2025']; // This should be updated dynamically if needed
 
   // Fetch all office users
   const fetchOfficeUsers = async () => {
@@ -53,6 +57,12 @@ export default function Office() {
   useEffect(() => {
     fetchOfficeUsers();
   }, []);
+
+  useEffect(() => {
+    if (officeUsers.length > 0) {
+      setLatestAcademicYear(officeUsers[0].academic_year || "");
+    }
+  }, [officeUsers]);
 
   // New office user form change
   const handleNewOfficeUserChange = (e) => {
@@ -177,7 +187,11 @@ export default function Office() {
   }, [globalMessage]);
 
   return (
-    <div className="p-0 md:p-2">
+    <div className="relative p-0 md:p-2">
+      {/* Academic Year Badge */}
+      <div className="flex justify-end">
+        <AcademicYearBadge year={latestAcademicYear} />
+      </div>
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-3xl font-extrabold text-gray-800 tracking-tight flex items-center gap-3">
           <span className="inline-block w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-2xl shadow">O</span>
@@ -203,13 +217,84 @@ export default function Office() {
             <input name="mobile" value={newOfficeUser.mobile} onChange={handleNewOfficeUserChange} placeholder="Mobile" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="office_id" value={newOfficeUser.office_id} onChange={handleNewOfficeUserChange} placeholder="Office ID" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="password" value={newOfficeUser.password} onChange={handleNewOfficeUserChange} placeholder="Password" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
-            <input name="academic_year" value={newOfficeUser.academic_year} onChange={handleNewOfficeUserChange} placeholder="Academic Year" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
+            <select
+              name="academic_year"
+              value={newOfficeUser.academic_year}
+              onChange={handleNewOfficeUserChange}
+              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">Select Academic Year</option>
+              {academicYearOptions.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
           </div>
           <div className="mt-6 flex gap-3 justify-end">
             <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform">Save</button>
             <button type="button" className="px-6 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={() => setShowOfficeUserForm(false)}>Cancel</button>
           </div>
         </form>
+      )}
+      {officeUserEditId !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <form
+            onSubmit={e => { e.preventDefault(); handleUpdateOfficeUser(officeUserEditId); }}
+            className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-lg w-full mx-4 border border-blue-100"
+          >
+            <div className="mb-6 text-center">
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mx-auto shadow-md">
+                <span className="text-3xl font-extrabold text-white">O</span>
+              </div>
+              <h3 className="text-2xl font-extrabold mt-4 text-blue-700">Edit Office User</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Name</label>
+                <input name="name" value={officeUserEditForm.name} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, name: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Username</label>
+                <input name="username" value={officeUserEditForm.username} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, username: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Email</label>
+                <input name="email" value={officeUserEditForm.email} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, email: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Mobile</label>
+                <input name="mobile" value={officeUserEditForm.mobile} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, mobile: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Office ID</label>
+                <input name="office_id" value={officeUserEditForm.office_id} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, office_id: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Password</label>
+                <input name="password" value={officeUserEditForm.password} onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, password: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Academic Year</label>
+                <select
+                  name="academic_year"
+                  value={officeUserEditForm.academic_year}
+                  onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, academic_year: e.target.value })}
+                  className="p-3 border-2 border-blue-200 rounded-xl w-full"
+                  required
+                >
+                  <option value="">Select Academic Year</option>
+                  {academicYearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform">Save</button>
+              <button type="button" className="px-6 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleOfficeUserCancelEdit}>Cancel</button>
+            </div>
+          </form>
+        </div>
       )}
       <div className="overflow-x-auto animate-fade-in">
         <table className="min-w-full bg-white border-0 rounded-2xl shadow-xl overflow-hidden">
@@ -250,7 +335,7 @@ export default function Office() {
                   <td className="p-4">{user.email}</td>
                   <td className="p-4">{user.mobile}</td>
                   <td className="p-4">{user.office_id}</td>
-                  <td className="p-4">{user.password}</td> {/* Show password */}
+                  <td className="p-4">{'••••••••'}</td> {/* Hide password */}
                   <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
                   <td className="p-4">{user.academic_year}</td>
                   <td className="p-4 flex gap-2">

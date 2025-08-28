@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AcademicYearBadge from "./AcademicYearBadge";
 import axios from 'axios';
 
 const API_BASE = 'http://localhost:5000/api';
@@ -27,8 +28,10 @@ const departmentOptions = [
 const yearSlotOptionsUG = ['I Year', 'II Year', 'III Year'];
 const yearSlotOptionsPG = ['I Year', 'II Year'];
 const degreeLevelOptions = ['UG', 'PG'];
+const academicYearOptions = ['2024-2025']; // This should be updated dynamically if needed
+const durationOptions = ['3', '2']; // For duration dropdown
 
-export default function Department() {
+export default function Department({ adminAcademicYear }) {
   const [departmentUsers, setDepartmentUsers] = useState([]);
   const [deptUserEditId, setDeptUserEditId] = useState(null);
   const [deptUserEditForm, setDeptUserEditForm] = useState({
@@ -54,6 +57,8 @@ export default function Department() {
   const [enrollmentSummary, setEnrollmentSummary] = useState([]);
   const [examinationSummary, setExaminationSummary] = useState([]);
   const [showFilter, setShowFilter] = useState(false);
+  const [latestAcademicYear, setLatestAcademicYear] = useState(adminAcademicYear || '');
+
 
   // Fetch all department users
   const fetchDepartmentUsers = async () => {
@@ -243,8 +248,15 @@ export default function Department() {
     // eslint-disable-next-line
   }, [filter.degree_level]);
 
+
+  
   return (
-    <div className="p-0 md:p-2">
+    <div className="relative p-0 md:p-2">
+      {/* Academic Year Badge - prefer prop, fallback to local/latest */}
+      <div className="flex justify-end">
+        <AcademicYearBadge year={adminAcademicYear || latestAcademicYear} />
+      </div>
+      
       {/* Department Data Collapsible Container */}
       <div className="mb-8">
         <button
@@ -507,13 +519,41 @@ export default function Department() {
               {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
             <input name="dept_id" value={newUser.dept_id} onChange={handleNewUserChange} placeholder="Dept ID" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
-            <input name="academic_year" value={newUser.academic_year} onChange={handleNewUserChange} placeholder="Academic Year" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
-            <select name="degree_level" value={newUser.degree_level} onChange={handleNewUserChange} className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required>
+            <select
+              name="academic_year"
+              value={newUser.academic_year}
+              onChange={handleNewUserChange}
+              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">Select Academic Year</option>
+              {academicYearOptions.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+            <select
+              name="degree_level"
+              value={newUser.degree_level}
+              onChange={handleNewUserChange}
+              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
+              required
+            >
               <option value="">Select Degree Level</option>
               <option value="UG">UG</option>
               <option value="PG">PG</option>
             </select>
-            <input name="duration" value={newUser.duration} onChange={handleNewUserChange} placeholder="Duration" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" />
+            <select
+              name="duration"
+              value={newUser.duration}
+              onChange={handleNewUserChange}
+              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
+              required
+            >
+              <option value="">Select Duration</option>
+              {durationOptions.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
             <input name="password" value={newUser.password} onChange={handleNewUserChange} placeholder="Password" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="hod" value={newUser.hod} onChange={handleNewUserChange} placeholder="HOD Name" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
           </div>
@@ -558,7 +598,18 @@ export default function Department() {
                         {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                       </select></td>
                       <td className="p-3"><input name="dept_id" value={deptUserEditForm.dept_id} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
-                      <td className="p-3"><input name="academic_year" value={deptUserEditForm.academic_year} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl" /></td>
+                      <td className="p-3"><select
+                        name="academic_year"
+                        value={deptUserEditForm.academic_year}
+                        onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
+                        className="p-2 border-2 border-yellow-300 rounded-xl"
+                        required
+                      >
+                        <option value="">Select Academic Year</option>
+                        {academicYearOptions.map(year => (
+                          <option key={year} value={year}>{year}</option>
+                        ))}
+                      </select></td>
                       <td className="p-3"><select name="degree_level" value={deptUserEditForm.degree_level} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })} className="p-2 border-2 border-yellow-300 rounded-xl">
                         <option value="">Select Degree Level</option>
                         <option value="UG">UG</option>
@@ -584,7 +635,7 @@ export default function Department() {
                       <td className="p-4"><span className={`px-3 py-1 rounded-2xl text-xs font-bold ${user.degree_level === 'PG' ? 'bg-gradient-to-r from-purple-500 to-indigo-500 text-white' : 'bg-blue-100 text-blue-700'}`}>{user.degree_level}</span></td>
                       <td className="p-4">{user.duration}</td>
                       <td className="p-4">{user.hod}</td>
-                      <td className="p-4">{user.password}</td> {/* Show password */}
+                      <td className="p-4">{'••••••••'}</td> {/* Hide password */}
                       <td className="p-4">{user.locked ? 'Yes' : 'No'}</td>
                       <td className="p-4 flex gap-2">
                         <button className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-600 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform" onClick={() => handleDeptUserEdit(user)}>Edit</button>
@@ -598,6 +649,102 @@ export default function Department() {
           </table>
         </div>
       )}
+      {/* Department User Edit Modal */}
+      {deptUserEditId !== null && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <form
+            onSubmit={e => { e.preventDefault(); handleDeptUserUpdate(deptUserEditId); }}
+            className="bg-white rounded-2xl shadow-xl p-6 md:p-8 max-w-2xl w-full mx-4 border border-blue-100"
+          >
+            <div className="mb-6 text-center">
+              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center mx-auto shadow-md">
+                <span className="text-3xl font-extrabold text-white">D</span>
+              </div>
+              <h3 className="text-2xl font-extrabold mt-4 text-blue-700">Edit Department User</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Name</label>
+                <input name="name" value={deptUserEditForm.name} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, name: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Username</label>
+                <input name="username" value={deptUserEditForm.username} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, username: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Email</label>
+                <input name="email" value={deptUserEditForm.email} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, email: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Mobile</label>
+                <input name="mobile" value={deptUserEditForm.mobile} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, mobile: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Department</label>
+                <select name="department" value={deptUserEditForm.department} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, department: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required>
+                  <option value="">Select Department</option>
+                  {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Dept ID</label>
+                <input name="dept_id" value={deptUserEditForm.dept_id} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, dept_id: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Academic Year</label>
+                <select
+                  name="academic_year"
+                  value={deptUserEditForm.academic_year}
+                  onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
+                  className="p-3 border-2 border-blue-200 rounded-xl w-full"
+                  required
+                >
+                  <option value="">Select Academic Year</option>
+                  {academicYearOptions.map(year => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Degree Level</label>
+                <select name="degree_level" value={deptUserEditForm.degree_level} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, degree_level: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required>
+                  <option value="">Select Degree Level</option>
+                  <option value="UG">UG</option>
+                  <option value="PG">PG</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Duration</label>
+                <select
+                  name="duration"
+                  value={deptUserEditForm.duration}
+                  onChange={e => setDeptUserEditForm({ ...deptUserEditForm, duration: e.target.value })}
+                  className="p-3 border-2 border-blue-200 rounded-xl w-full"
+                  required
+                >
+                  <option value="">Select Duration</option>
+                  {durationOptions.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">HOD</label>
+                <input name="hod" value={deptUserEditForm.hod} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, hod: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" required />
+              </div>
+              <div>
+                <label className="block font-bold text-blue-700 mb-2">Password</label>
+                <input name="password" value={deptUserEditForm.password} onChange={e => setDeptUserEditForm({ ...deptUserEditForm, password: e.target.value })} className="p-3 border-2 border-blue-200 rounded-xl w-full" />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-3 justify-end">
+              <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform">Save</button>
+              <button type="button" className="px-6 py-2 bg-gray-300 text-gray-700 rounded-2xl font-bold shadow hover:bg-gray-400" onClick={handleDeptUserCancelEdit}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
     </div>
   );
 }

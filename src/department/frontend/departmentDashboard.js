@@ -1,26 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  RiDashboardLine,
   RiLogoutBoxLine,
   RiSearchLine,
   RiBuilding2Line,
   RiUserAddLine,
-  RiBarChartBoxLine
+  RiBarChartBoxLine,
+  RiDashboardLine
 } from 'react-icons/ri';
 import axios from 'axios';
 import StudentEnrollment from './studentEnrollment';
 import StudentExamination from './studentExamination';
+import DeptWelcomeDashboard from './deptwelcomedashboard';
 
 
 const yearSlots = ['I Year', 'II Year', 'III Year'];
 
 export default function DepartmentDashboard() {
   const [userData, setUserData] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('deptwelcomedashboard'); // Default to dashboard
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [globalMessage] = useState(null);
+  const [loginMessage, setLoginMessage] = useState(null);
 
   // For passing to child components
   const [academicYears, setAcademicYears] = useState([]);
@@ -53,6 +55,15 @@ export default function DepartmentDashboard() {
     fetchYears();
   }, [userData]);
 
+  useEffect(() => {
+    const msg = localStorage.getItem("departmentLoginMessage");
+    if (msg) {
+      setLoginMessage(msg);
+      localStorage.removeItem("departmentLoginMessage");
+      setTimeout(() => setLoginMessage(null), 3500);
+    }
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('departmentUser');
@@ -61,7 +72,14 @@ export default function DepartmentDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+      {/* Login Success Message - styled and placed like admin dashboard */}
+      {loginMessage && (
+        <div className="fixed top-6 right-6 z-50">
+          <div className="px-5 py-3 rounded-xl bg-green-600 text-white font-semibold shadow-lg">
+            {loginMessage}
+          </div>
+        </div>
+      )}
       <motion.div
         initial={{ x: -300 }}
         animate={{ x: sidebarOpen ? 0 : -300 }}
@@ -84,13 +102,13 @@ export default function DepartmentDashboard() {
           <nav className="space-y-2">
             <motion.button
               whileHover={{ x: 4 }}
-              onClick={() => setActiveTab('overview')}
+              onClick={() => setActiveTab('deptwelcomedashboard')}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
-                activeTab === 'overview' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
+                activeTab === 'deptwelcomedashboard' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
               <RiDashboardLine className="text-xl" />
-              <span>Overview</span>
+              <span>Dashboard</span>
             </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
@@ -112,8 +130,6 @@ export default function DepartmentDashboard() {
               <RiBarChartBoxLine className="text-xl" />
               <span>Student Examination</span>
             </motion.button>
-            {/* If you have Profile Settings, add it after Enrollment Status */}
-            {/* <motion.button ...>Profile Settings</motion.button> */}
           </nav>
         </div>
         <div className="absolute bottom-6 left-0 right-0 px-6">
@@ -140,16 +156,10 @@ export default function DepartmentDashboard() {
               >
                 <RiDashboardLine className="text-xl text-gray-600" />
               </button>
-              <div className="flex-1 max-w-xl mx-4">
-                <div className="relative">
-                  <RiSearchLine className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+              {/* Centered Portal Title */}
+              <div className="flex-1 flex justify-center">
+                <div className="text-3xl font-extrabold text-blue-700 tracking-tight text-center uppercase">
+                  GASCKK AISHE PORTAL
                 </div>
               </div>
               <div className="flex items-center space-x-4">
@@ -167,55 +177,28 @@ export default function DepartmentDashboard() {
 
         {/* Main Content Area */}
         <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold text-gray-900">
-              {activeTab === 'overview'
-                ? 'Department Overview'
-                : activeTab === 'enrollment'
-                ? 'Student Enrollment'
-                : activeTab === 'examination'
-                ? 'Student Examination'
-                : 'Profile Settings'}
-            </h1>
-            <p className="mt-1 text-gray-500">
-              {userData?.department} - {userData?.dept_id}
-            </p>
+          <div className="p-6">
+            {activeTab === 'deptwelcomedashboard' && (
+              <DeptWelcomeDashboard />
+            )}
+
+            {activeTab === 'enrollment' && (
+              <StudentEnrollment
+                userData={userData}
+                yearSlots={yearSlots}
+              />
+            )}
+
+            {activeTab === 'examination' && (
+              <StudentExamination
+                userData={userData}
+                academicYears={academicYears}
+                yearSlots={yearSlots}
+                currentYearSlot={currentYearSlot}
+                setCurrentYearSlot={setCurrentYearSlot}
+              />
+            )}
           </div>
-
-          {/* Dynamic Content Based on Active Tab */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-sm overflow-hidden"
-          >
-            <div className="p-6">
-              {activeTab === 'overview' && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">Department Overview</h3>
-                  {/* Add overview content here */}
-                </div>
-              )}
-
-              {activeTab === 'enrollment' && (
-                <StudentEnrollment
-                  userData={userData}
-                  yearSlots={yearSlots}
-                />
-              )}
-
-              {activeTab === 'examination' && (
-                <StudentExamination
-                  userData={userData}
-                  academicYears={academicYears}
-                  yearSlots={yearSlots}
-                  currentYearSlot={currentYearSlot}
-                  setCurrentYearSlot={setCurrentYearSlot}
-                />
-              )}
-
-              
-            </div>
-          </motion.div>
         </div>
       </div>
 

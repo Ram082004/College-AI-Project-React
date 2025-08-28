@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
 
 const API_BASE = "http://localhost:5000/api/office";
 const API = {
@@ -11,6 +12,8 @@ function BasicInformation({ editMode, setEditMode }) {
   const [fields, setFields] = useState({});
   const [loading, setLoading] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
+  const [officeAcademicYear, setOfficeAcademicYear] = useState('');
+  
 
   useEffect(() => {
     fetchBasicInfo();
@@ -34,7 +37,7 @@ function BasicInformation({ editMode, setEditMode }) {
 
   const handleChange = (e) => {
     if (!editMode) return; // Prevent editing if not in edit mode
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
     const booleanFields = [
       "affiliated_other_university",
       "evening_college",
@@ -83,6 +86,19 @@ function BasicInformation({ editMode, setEditMode }) {
       setLoading(false);
     }
   };
+  
+  // Fetch latest academic year from office_users table
+  useEffect(() => {
+    async function fetchAcademicYear() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
+      } catch {
+        setOfficeAcademicYear("");
+      }
+    }
+    fetchAcademicYear();
+  }, []);
 
   return (
     <div className="max-w-5xl mx-auto p-8 bg-white rounded-3xl shadow-2xl border border-gray-100">
@@ -451,6 +467,13 @@ function BasicInformation({ editMode, setEditMode }) {
             <button type="submit" disabled={loading} className="dashboard-button-primary text-lg px-8 py-3 rounded-xl shadow">
               {loading ? "Saving..." : "Save"}
             </button>
+            <button
+              type="button"
+              className="ml-4 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+              onClick={() => setEditMode(false)}
+            >
+              Cancel
+            </button>
           </div>
         )}
       </form>
@@ -590,55 +613,18 @@ function OfficeDetails({ editMode, setEditMode }) {
           </div>
         </div>
         {/* Nodal Officer Details */}
-        <div>
-          <div className="font-bold text-lg mb-2">18. Nodal Officer Details</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-            <div className="font-medium">Name of Nodal Officer for AISHE</div>
-            <input
-              className="border rounded px-3 py-2 bg-gray-50"
-              name="nodal_name"
-              value={data.nodal_name || ""}
-              onChange={handleChange}
-              readOnly={!editMode}
-            />
-            <div className="font-medium">Designation</div>
-            <input
-              className="border rounded px-3 py-2 bg-gray-50"
-              name="nodal_designation"
-              value={data.nodal_designation || ""}
-              onChange={handleChange}
-              readOnly={!editMode}
-            />
-            <div className="font-medium">Mobile No</div>
-            <input
-              className="border rounded px-3 py-2 bg-gray-50"
-              name="nodal_mobile"
-              value={data.nodal_mobile || ""}
-              onChange={handleChange}
-              readOnly={!editMode}
-            />
-            <div className="font-medium">Email</div>
-            <input
-              className="border rounded px-3 py-2 bg-gray-50"
-              name="nodal_email"
-              value={data.nodal_email || ""}
-              onChange={handleChange}
-              readOnly={!editMode}
-            />
-            <div className="font-medium">Telephone No (with STD Code)</div>
-            <input
-              className="border rounded px-3 py-2 bg-gray-50"
-              name="nodal_phone"
-              value={data.nodal_phone || ""}
-              onChange={handleChange}
-              readOnly={!editMode}
-            />
-          </div>
-        </div>
+        
         {editMode && (
           <div className="flex gap-4 justify-end mt-10">
             <button type="submit" disabled={loading} className="dashboard-button-primary text-lg px-8 py-3 rounded-xl shadow">
               {loading ? "Saving..." : "Save"}
+            </button>
+            <button
+              type="button"
+              className="ml-4 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+              onClick={() => setEditMode(false)}
+            >
+              Cancel
             </button>
           </div>
         )}
@@ -733,7 +719,7 @@ function AddressDetails({ editMode, setEditMode }) {
       </div>
       <form onSubmit={handleSave}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
-          <div className="font-medium">19. Location of the Institution</div>
+          <div className="font-medium">18. Location of the Institution</div>
           <select
             className="border rounded px-3 py-2 bg-gray-50"
             name="location_type"
@@ -864,6 +850,13 @@ function AddressDetails({ editMode, setEditMode }) {
             <button type="submit" disabled={loading} className="dashboard-button-primary text-lg px-8 py-3 rounded-xl shadow">
               {loading ? "Saving..." : "Save"}
             </button>
+            <button
+              type="button"
+              className="ml-4 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold hover:bg-gray-300"
+              onClick={() => setEditMode(false)}
+            >
+              Cancel
+            </button>
           </div>
         )}
       </form>
@@ -887,6 +880,20 @@ export default function OfficeTabs() {
     office: false,
     address: false,
   });
+  const [officeAcademicYear, setOfficeAcademicYear] = useState('');
+
+  // Fetch latest academic year from office_users table
+  useEffect(() => {
+    async function fetchAcademicYear() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
+      } catch {
+        setOfficeAcademicYear("");
+      }
+    }
+    fetchAcademicYear();
+  }, []);
 
   const handleEdit = (tabKey, value) => {
     setEditModes((prev) => ({
@@ -900,11 +907,15 @@ export default function OfficeTabs() {
     { key: "office", label: "Office Details" },
     { key: "address", label: "Address Details" },
   ];
-
+  
   return (
     <div className="w-full max-w-5xl mx-auto">
+      {/* Academic Year Badge above tab switcher */}
+      <div className="flex justify-start mb-4">
+        <AcademicYearBadge year={officeAcademicYear} />
+      </div>
       {/* Modern Floating Tab Switcher */}
-      <div className="flex justify-center mt-8 mb-12">
+      <div className="flex justify-center mt-4 mb-12">
         <div className="relative flex bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full shadow-lg p-1">
           {tabs.map((tab) => (
             <button
@@ -947,3 +958,5 @@ export default function OfficeTabs() {
     </div>
   );
 }
+
+export { BasicInformation, OfficeDetails, AddressDetails };
