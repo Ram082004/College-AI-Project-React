@@ -52,10 +52,20 @@ const PdfDownload = () => {
 
 
   useEffect(() => {
-    if (academicYears.length > 0) {
-      setLatestAcademicYear(academicYears[0]);
+    async function fetchAdminAcademicYear() {
+      try {
+        const res = await axios.get("http://localhost:5000/api/admin/all", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+        });
+        if (res.data?.admins?.length) {
+          setLatestAcademicYear(res.data.admins[0].academic_year || "");
+        }
+      } catch {
+        setLatestAcademicYear("");
+      }
     }
-  }, [academicYears]);
+    fetchAdminAcademicYear();
+  }, []);
 
   const handleSectionChange = (e) => {
     setSections({ ...sections, [e.target.name]: e.target.checked });

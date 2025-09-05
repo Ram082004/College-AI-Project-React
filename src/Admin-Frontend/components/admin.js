@@ -12,22 +12,8 @@ const API = {
 };
 
 export default function Admin({ adminAcademicYear }) {
-  // Use state for academic year options so we can add new years dynamically
-  const [academicYearOptions, setAcademicYearOptions] = useState(
-    adminAcademicYear
-      ? [adminAcademicYear, '2025-2026', '2026-2027']
-      : ['2024-2025', '2025-2026', '2026-2027']
-  );
-
-  // Function to add a new year to the dropdown
-  const addAcademicYearOption = (year) => {
-    setAcademicYearOptions((prev) => {
-      if (!prev.includes(year)) {
-        return [year, ...prev];
-      }
-      return prev;
-    });
-  };
+  // Define academic year options
+  const academicYearOptions = ['2024-2025', '2025-2026', '2026-2027'];
 
   const [admins, setAdmins] = useState([]);
   const [editId, setEditId] = useState(null);
@@ -38,7 +24,7 @@ export default function Admin({ adminAcademicYear }) {
     mobile: '',
     role: '',
     password: '',
-    academic_year: '', // <-- Add this
+    academic_year: '',
   });
   const [newAdmin, setNewAdmin] = useState({
     username: '',
@@ -47,13 +33,13 @@ export default function Admin({ adminAcademicYear }) {
     mobile: '',
     role: 'Admin',
     password: '',
-    academic_year: '', // <-- Add this
+    academic_year: academicYearOptions[0], // Default to the first academic year
   });
   const [loading, setLoading] = useState(false);
   const [showAdminForm, setShowAdminForm] = useState(false);
   const [globalMessage, setGlobalMessage] = useState(null);
   const [newAcademicYear, setNewAcademicYear] = useState('');
-  const [latestAcademicYear, setLatestAcademicYear] = useState("");
+  const [latestAcademicYear, setLatestAcademicYear] = useState(academicYearOptions[0]);
 
   // Fetch all admins
   const fetchAdmins = async () => {
@@ -70,17 +56,14 @@ export default function Admin({ adminAcademicYear }) {
     }
   };
 
-  // After fetching admins, set default academic year for new admin
   useEffect(() => {
     fetchAdmins();
   }, []);
 
   useEffect(() => {
     if (admins.length > 0) {
-      setLatestAcademicYear(admins[0].academic_year || "");
-      // Use the latest academic year from the admin table
-      const latestYear = admins[0].academic_year || '';
-      setNewAdmin((prev) => ({ ...prev, academic_year: latestYear }));
+      setLatestAcademicYear(admins[0].academic_year || academicYearOptions[0]);
+      setNewAdmin((prev) => ({ ...prev, academic_year: admins[0].academic_year || academicYearOptions[0] }));
     }
   }, [admins]);
 
@@ -104,7 +87,13 @@ export default function Admin({ adminAcademicYear }) {
       if (res.data.success) {
         setGlobalMessage({ type: 'success', text: res.data.message });
         setNewAdmin({
-          username: '', email: '', name: '', mobile: '', role: 'Admin', password: '', academic_year: newAdmin.academic_year,
+          username: '',
+          email: '',
+          name: '',
+          mobile: '',
+          role: 'Admin',
+          password: '',
+          academic_year: academicYearOptions[0],
         });
         setShowAdminForm(false);
         fetchAdmins();
@@ -186,17 +175,17 @@ export default function Admin({ adminAcademicYear }) {
   // Update academic year
   const handleUpdateAcademicYear = async () => {
     if (!newAcademicYear) {
-      setGlobalMessage({ type: 'error', text: 'Please enter new academic year' });
+      setGlobalMessage({ type: 'error', text: 'Please select a new academic year' });
       return;
     }
     setLoading(true);
     try {
       const res = await axios.post(`${API_BASE}/admin/update-academic-year`, { newAcademicYear }, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` },
       });
       setGlobalMessage({ type: res.data.success ? 'success' : 'error', text: res.data.message });
       if (res.data.success) {
-        addAcademicYearOption(newAcademicYear); // Add new year to dropdown
+        setLatestAcademicYear(newAcademicYear);
       }
       fetchAdmins();
     } catch (err) {
@@ -205,13 +194,6 @@ export default function Admin({ adminAcademicYear }) {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (globalMessage) {
-      const timer = setTimeout(() => setGlobalMessage(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [globalMessage]);
 
   return (
     <div className="relative p-0 md:p-2">
@@ -267,7 +249,6 @@ export default function Admin({ adminAcademicYear }) {
           onChange={e => setNewAcademicYear(e.target.value)}
           className="px-5 py-3 rounded-xl border-2 border-blue-300 bg-blue-50 text-blue-800 font-semibold shadow focus:ring-2 focus:ring-blue-400 transition-all text-lg"
           required
-          style={{ minWidth: 180, maxWidth: 260 }}
         >
           <option value="">Select Academic Year</option>
           {academicYearOptions.map(year => (

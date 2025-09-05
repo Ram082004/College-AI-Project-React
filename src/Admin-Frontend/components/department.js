@@ -57,6 +57,7 @@ export default function Department({ adminAcademicYear }) {
   const [enrollmentSummary, setEnrollmentSummary] = useState([]);
   const [examinationSummary, setExaminationSummary] = useState([]);
   const [showFilter, setShowFilter] = useState(false);
+  const [adminAcademicYearState, setAdminAcademicYear] = useState(adminAcademicYear || '');
   const [latestAcademicYear, setLatestAcademicYear] = useState(adminAcademicYear || '');
 
 
@@ -79,19 +80,20 @@ export default function Department({ adminAcademicYear }) {
     fetchDepartmentUsers();
   }, []);
 
-  // Fetch academic years from backend
-  useEffect(() => {
-    async function fetchAcademicYears() {
+    useEffect(() => {
+    async function fetchAdminAcademicYear() {
       try {
-        const res = await axios.get(API.DEPT_USER_DISTINCT_YEARS, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        const res = await axios.get(`${API_BASE}/admin/all`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
         });
-        setAcademicYears(res.data.years || []);
+        if (res.data?.admins?.length) {
+          setAdminAcademicYear(res.data.admins[0].academic_year || "");
+        }
       } catch {
-        setAcademicYears([]);
+        setAdminAcademicYear("");
       }
     }
-    fetchAcademicYears();
+    fetchAdminAcademicYear();
   }, []);
 
   // New user form change

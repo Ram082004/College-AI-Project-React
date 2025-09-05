@@ -48,28 +48,35 @@ export default function OfficeDetails() {
     fetchAdminAcademicYear();
   }, []);
 
-  // Helper to format date as DD-MM-YYYY
-  const formatDate = (dateStr) => {
-    if (!dateStr) return "-";
-    const d = new Date(dateStr);
-    if (isNaN(d)) return dateStr;
-    return `${d.getDate().toString().padStart(2, "0")}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getFullYear()}`;
-  };
+  // --- CHANGED: derive filtered arrays by latestAcademicYear and use them for rendering ---
+  // Filter nonTeachingData by latest academic year
+  const filteredNonTeachingData = nonTeachingData.filter(
+    row => row.academic_year === latestAcademicYear
+  );
 
-  // Group by staff_group for summary
+  // Filter teachingData by latest academic year
+  const filteredTeachingData = teachingData.filter(
+    row => row.academic_year === latestAcademicYear
+  );
+
+  // Filter detailed rows by latest academic year (used for breakdown popup)
+  const filteredDetailRecords = detailRecords.filter(r => r.academic_year === latestAcademicYear);
+
+  // Group by staff_group for summary (use filteredNonTeachingData now)
   const groupMap = {};
-  nonTeachingData.forEach(row => {
+  filteredNonTeachingData.forEach(row => {
     const group = row.staff_group || 'Other';
     if (!groupMap[group]) groupMap[group] = [];
     groupMap[group].push(row);
   });
 
-  const paginatedTeaching = teachingData.slice(
+  // Paginate filtered teaching data
+  const paginatedTeaching = filteredTeachingData.slice(
     (currentPage - 1) * recordsPerPage,
     currentPage * recordsPerPage
   );
 
-  const totalPagesTeaching = Math.ceil(teachingData.length / recordsPerPage);
+  const totalPagesTeaching = Math.ceil(filteredTeachingData.length / recordsPerPage);
 
   function renderTeachingPagination() {
     if (totalPagesTeaching <= 1) return null;
@@ -106,30 +113,20 @@ export default function OfficeDetails() {
     );
   }
 
-  // Filter nonTeachingData by latest academic year
-  const filteredNonTeachingData = nonTeachingData.filter(
-    row => row.academic_year === latestAcademicYear
-  );
-
-  // Filter detailed rows by latest academic year (used for breakdown popup)
-  const filteredDetailRecords = detailRecords.filter(r => r.academic_year === latestAcademicYear);
-
-  // Get unique categories from filtered data
-  const categories = Array.from(
-    new Set(filteredNonTeachingData.map(row => row.category))
-  );
-
-  // Master list of categories (update as per your actual categories)
+  // Helper to format date as DD-MM-YYYY
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "-";
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    return `${d.getDate().toString().padStart(2, "0")}-${(d.getMonth() + 1).toString().padStart(2, "0")}-${d.getFullYear()}`;
+  };
+// Master list of categories (update as per your actual categories)
   const MASTER_CATEGORIES = [
     "General Including EWS",
     "Scheduled Caste (SC)",
     "Scheduled Tribe (ST)",
     "Other Backward Classes (OBC)"
   ];
-
-  // Master list of genders
-  const MASTER_GENDERS = ["Male", "Female", "Transgender"];
-
   // Helper: breakdown counts for selected group and subcategory
   // Use detailed rows for accurate per-category & per-gender breakdown.
   function getMinorityBreakdown(group, subcategory) {

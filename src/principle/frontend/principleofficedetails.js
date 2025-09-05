@@ -6,6 +6,8 @@ const API_BASE = "http://localhost:5000/api";
 const API = {
   TEACHING: `${API_BASE}/office/teaching-staff`,
   NON_TEACHING: `${API_BASE}/office/non-teaching-staff`,
+  // aggregated summary endpoint (same as Admin UI)
+  NON_TEACHING_SUMMARY: `${API_BASE}/office-user/office-details/nonteaching`,
 };
 
 export default function PrincipleOfficeDetails() {
@@ -29,17 +31,18 @@ export default function PrincipleOfficeDetails() {
 
   useEffect(() => {
     setLoading(true);
-    // fetch teaching & aggregated non-teaching
+    // fetch teaching & aggregated non-teaching summary (use summary endpoint)
     axios.get(API.TEACHING, { headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` } })
       .then(res => setTeachingData(res.data.data || []))
       .catch(() => setTeachingData([]))
       .finally(() => setLoading(false));
 
-    axios.get(API.NON_TEACHING, { headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` } })
+    // aggregated summary (male_count / female_count / transgender_count)
+    axios.get(API.NON_TEACHING_SUMMARY, { headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` } })
       .then(res => setNonTeachingData(res.data.data || []))
       .catch(() => setNonTeachingData([]));
 
-    // fetch detailed non-teaching rows (same endpoint used by Admin UI)
+    // detailed rows for breakdown popup (per-category/gender entries)
     axios.get(API.NON_TEACHING, { headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` } })
       .then(res => setDetailRecords(res.data.data || []))
       .catch(() => setDetailRecords([]));
@@ -79,25 +82,27 @@ export default function PrincipleOfficeDetails() {
   const filteredNonTeachingData = nonTeachingData.filter(r => String(r.academic_year) === String(adminAcademicYear));
   const filteredDetailRecords = detailRecords.filter(r => String(r.academic_year) === String(adminAcademicYear));
 
+  // Filter teachingData by displayed admin academic year (same approach as Admin UI)
+  const filteredTeachingData = teachingData.filter(r => String(r.academic_year) === String(adminAcademicYear));
+  
   // Build group summaries — ensure we show DEFAULT_GROUPS when data missing for a new year
   const groupsToRender = (() => {
-    const groupsFromData = Array.from(new Set(filteredNonTeachingData.map(r => r.staff_group))).filter(Boolean);
+    const groupsFromData = Array.from(new Set(filteredNonTeachingData.map(r => r.staff_group || r.staff_group_name))).filter(Boolean);
     return groupsFromData.length ? groupsFromData : DEFAULT_GROUPS;
   })();
-
+  
   function getGroupSummaryFor(group) {
-    // If aggregated summary rows are available in filteredNonTeachingData, prefer them (e.g., male_count/female_count)
-    const groupRows = filteredNonTeachingData.filter(r => (r.staff_group || r.staff_group_name) === group);
-    if (groupRows.length > 0) {
-      // aggregated summary might have male_count/female_count/transgender_count
-      const agg = groupRows[0];
-      const male = Number(agg.male_count ?? agg.male ?? groupRows.reduce((s, r) => s + (Number(r.filled_count || r.male_count || 0) || 0), 0));
-      const female = Number(agg.female_count ?? agg.female ?? groupRows.reduce((s, r) => s + (Number(r.filled_count || r.female_count || 0) || 0), 0));
-      const transgender = Number(agg.transgender_count ?? agg.transgender ?? groupRows.reduce((s, r) => s + (Number(r.filled_count || r.transgender_count || 0) || 0), 0));
-      const academicYear = agg.academic_year || adminAcademicYear || "-";
-      const sanctionedStrength = agg.sanctioned_strength ?? '-';
-      const staffType = agg.staff_type ?? '-';
-      return { male, female, transgender, academicYear, sanctionedStrength, staffType };
+    // Find the first row for this group and academic year
+    const summaryRow = filteredNonTeachingData.find(r => (r.staff_group || r.staff_group_name) === group);
+    if (summaryRow) {
+      return {
+        male: Number(summaryRow.male_count ?? 0),
+        female: Number(summaryRow.female_count ?? 0),
+        transgender: Number(summaryRow.transgender_count ?? 0),
+        academicYear: summaryRow.academic_year || adminAcademicYear || "-",
+        sanctionedStrength: summaryRow.sanctioned_strength ?? "-",
+        staffType: summaryRow.staff_type || summaryRow.staff_type_name || "-",
+      };
     }
     // No data -> zero summary for the selected adminAcademicYear
     return { male: 0, female: 0, transgender: 0, academicYear: adminAcademicYear || "-", sanctionedStrength: '-', staffType: '-' };
@@ -164,7 +169,7 @@ export default function PrincipleOfficeDetails() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teachingData.length > 0 ? teachingData.map((row, idx) => (
+                  {filteredTeachingData.length > 0 ? filteredTeachingData.map((row, idx) => (
                     <tr key={row.id || idx} className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 transition border-b border-blue-50 last:border-0">
                       <td className="px-4 py-3">{row.name}</td>
                       <td className="px-4 py-3">{row.department}</td>
