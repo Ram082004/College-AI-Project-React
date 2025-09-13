@@ -23,6 +23,14 @@ const sectionTitle = {
   textAlign: "left"
 };
 
+const tableStyle = {
+  width: "100%",
+  borderCollapse: "collapse",
+  marginBottom: "20px",
+  pageBreakInside: "avoid", // Prevent table splitting across pages
+  fontSize: "12px" // Smaller font for better fit
+};
+
 const PdfReportTable = ({
   basicInfo,
   officeDetails,
@@ -34,7 +42,15 @@ const PdfReportTable = ({
   sections = { basic: true, office: true, address: true, enrollment: true, examination: true },
   selectedAcademicYear
 }) => (
-  <div style={{ padding: "40px", background: "#fff", width: "800px", minHeight: "1120px", boxSizing: "border-box" }}>
+  <div style={{ 
+  padding: "40px", 
+  background: "#fff", 
+  width: "100%", 
+  minHeight: "1120px", 
+  boxSizing: "border-box",
+  maxWidth: "1120px",
+  margin: "0 auto"
+}}>
     {/* Custom Heading and Subheading */}
     <h1 style={{ textAlign: "center", fontWeight: "bold", fontSize: "2rem", marginBottom: "8px", color: "#1e293b" }}>
       GOVERNMENT ARTS AND SCIENCE COLLEGE, PALKULAM KANYAKUMARI - 629 401
@@ -47,7 +63,7 @@ const PdfReportTable = ({
     </div>
     {/* Basic Details Section */}
     {sections.basic && basicInfo && (
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px" }}>
+      <table style={tableStyle}>
         <thead>
           <tr><td colSpan={2} style={sectionTitle}>A: Basic Details</td></tr>
         </thead>
@@ -142,7 +158,7 @@ const PdfReportTable = ({
 
     {/* Office Details Section */}
     {sections.office && officeDetails && (
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px" }}>
+      <table style={tableStyle}>
         <thead>
           <tr><td colSpan={2} style={sectionTitle}>B: Officers Details</td></tr>
         </thead>
@@ -163,7 +179,7 @@ const PdfReportTable = ({
 
     {/* Address Details Section */}
     {sections.address && addressDetails && (
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px" }}>
+      <table style={tableStyle}>
         <thead>
           <tr><td colSpan={2} style={sectionTitle}>C: Address</td></tr>
         </thead>

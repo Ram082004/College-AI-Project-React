@@ -13,6 +13,7 @@ import {
 } from 'react-icons/ri';
 import axios from 'axios';
 import OfficeWelcomeDashboard from './officewelcomedashboard';
+import DeptEnrollment from './officedeptenrollment'; // add this import
 
 
 export default function OfficeDashboard() {
@@ -123,6 +124,18 @@ export default function OfficeDashboard() {
               <RiFileListLine className="text-xl" />
               <span>Basic Information</span>
             </motion.button>
+
+            {/* NEW: Department Entry */}
+            <motion.button
+              whileHover={{ x: 4 }}
+              onClick={() => setActiveTab('departmententry')}
+              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
+                activeTab === 'departmententry' ? 'bg-cyan-50 text-cyan-600' : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <RiUserSettingsLine className="text-xl" />
+              <span>Department Entry</span>
+            </motion.button>
             <motion.button
               whileHover={{ x: 4 }}
               onClick={() => setActiveTab('nonteachingstaff')}
@@ -202,6 +215,9 @@ export default function OfficeDashboard() {
               )}
               {activeTab === 'nonteachingstaff' && (
                 <StaffEnrollment userData={userData} />
+              )}
+              {activeTab === 'departmententry' && (
+                <DeptEnrollment />
               )}
               {activeTab === 'teachingstaff' && (
                 <TeachingStaff userData={userData} />

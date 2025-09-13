@@ -40,15 +40,28 @@ const PdfDownload = () => {
       .then(res => setOfficeDetails(res.data.data || {}));
     axios.get("http://localhost:5000/api/office/institution-address", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setAddressDetails(res.data.data || {}));
-    axios.get("http://localhost:5000/api/template/department-enrollment-summary", { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => setDepartmentEnrollment(res.data.summary || []));
-    axios.get("http://localhost:5000/api/template/department-examination-summary", { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => setDepartmentExamination(res.data.summary || []));
-    axios.get("http://localhost:5000/api/template/teaching-staff-summary", { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => setTeachingStaff(res.data.summary || []));
-    axios.get("http://localhost:5000/api/template/non-teaching-staff-summary", { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => setNonTeachingStaff(res.data.summary || []));
-  }, []);
+
+    // Template summaries: include academic year as query param so backend can filter
+    axios.get("http://localhost:5000/api/template/department-enrollment-summary", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { academic_year: selectedAcademicYear }
+    }).then(res => setDepartmentEnrollment(res.data.summary || []));
+
+    axios.get("http://localhost:5000/api/template/department-examination-summary", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { academic_year: selectedAcademicYear }
+    }).then(res => setDepartmentExamination(res.data.summary || []));
+
+    axios.get("http://localhost:5000/api/template/teaching-staff-summary", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { academic_year: selectedAcademicYear }
+    }).then(res => setTeachingStaff(res.data.summary || []));
+
+    axios.get("http://localhost:5000/api/template/non-teaching-staff-summary", {
+      headers: { Authorization: `Bearer ${token}` },
+      params: { academic_year: selectedAcademicYear }
+    }).then(res => setNonTeachingStaff(res.data.summary || []));
+  }, [selectedAcademicYear]);
 
 
   useEffect(() => {
@@ -123,7 +136,7 @@ const PdfDownload = () => {
         renderedHeight += pageCanvasHeight;
       }
     }
-    pdf.save("InstitutionDetails.pdf");
+    pdf.save(`InstitutionDetails_${selectedAcademicYear}.pdf`);
     setDownloading(false);
   };
 

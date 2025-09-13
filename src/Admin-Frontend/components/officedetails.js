@@ -1,11 +1,15 @@
 import AcademicYearBadge from "./AcademicYearBadge";
 import axios from "axios";
 import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { RiBarChartBoxLine } from "react-icons/ri";
 
 const API_BASE = "http://localhost:5000/api";
 const API = {
   TEACHING: `${API_BASE}/office-user/office-details/teaching`,
   NON_TEACHING: `${API_BASE}/office-user/office-details/nonteaching`,
+  OFFICE_DEPT_GET: `${API_BASE}/office/officedept/get`,
+  OFFICE_DEPT_ACAD_YEAR: `${API_BASE}/office/teaching-staff/academic-year`
 };
 
 export default function OfficeDetails() {
@@ -17,10 +21,28 @@ export default function OfficeDetails() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [breakdownGroup, setBreakdownGroup] = useState(null);
   const [activeMinorityTab, setActiveMinorityTab] = useState("PwBD");
+  // Department detail modal state (used by Department Entry cards)
+  const [detailRow, setDetailRow] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const recordsPerPage = 10;
   const [currentPage, setCurrentPage] = useState(1);
   const [latestAcademicYear, setLatestAcademicYear] = useState("");
   const [detailRecords, setDetailRecords] = useState([]); // detailed non-teaching rows
+
+  // --- New: department entry state & options (referenced from officedeptenrollment.js) ---
+  const DEPT_OPTIONS = [
+    'B.C.A', 'B.A ENGLISH', 'M.A ENGLISH', 'BBA', 'B.COM',
+    'B.SC MATHS', 'M.SC MATHS', 'B.SC Physics', 'M.Com', 'B.Sc Chemistry'
+  ];
+  const [selectedDept, setSelectedDept] = useState('');
+  const [selectedDeptAcademicYear, setSelectedDeptAcademicYear] = useState('');
+  const [deptDetailRecords, setDeptDetailRecords] = useState([]); // raw rows from /office/officedept/get
+  const [deptTotals, setDeptTotals] = useState({
+    'PwBD': { male: 0, female: 0, transgender: 0 },
+    'Muslim Minority': { male: 0, female: 0, transgender: 0 },
+    'Other Minority': { male: 0, female: 0, transgender: 0 }
+  });
+  // --- end new ---
 
   useEffect(() => {
     setLoading(true);
@@ -47,6 +69,137 @@ export default function OfficeDetails() {
     }
     fetchAdminAcademicYear();
   }, []);
+
+  // ensure department-entry year follows admin/latestAcademicYear by default
+  useEffect(() => {
+    setSelectedDeptAcademicYear(latestAcademicYear || '');
+  }, [latestAcademicYear]);
+
+  // Fetch department-level records when department or year changes
+  useEffect(() => {
+    if (!selectedDept) {
+      setDeptDetailRecords([]);
+      setDeptTotals({
+        'PwBD': { male: 0, female: 0, transgender: 0 },
+        'Muslim Minority': { male: 0, female: 0, transgender: 0 },
+        'Other Minority': { male: 0, female: 0, transgender: 0 }
+      });
+      return;
+    }
+    // call async fetch
+    (async () => {
+      const year = selectedDeptAcademicYear || latestAcademicYear || '';
+      try {
+        setLoading(true);
+        const res = await axios.get(API.OFFICE_DEPT_GET, {
+          params: { academic_year: year, department: selectedDept },
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
+        });
+        const rows = res.data?.rows || [];
+        setDeptDetailRecords(rows);
+        setDeptTotals(computeDeptTotalsFromRows(rows));
+      } catch (err) {
+        console.debug("Failed to fetch dept records", err);
+        setDeptDetailRecords([]);
+        setDeptTotals({
+          'PwBD': { male: 0, female: 0, transgender: 0 },
+          'Muslim Minority': { male: 0, female: 0, transgender: 0 },
+          'Other Minority': { male: 0, female: 0, transgender: 0 }
+        });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedDept, selectedDeptAcademicYear, latestAcademicYear]);
+
+  // Robust aggregator tolerant to different row shapes
+  function computeDeptTotalsFromRows(rows = []) {
+    const totals = {
+      'PwBD': { male: 0, female: 0, transgender: 0 },
+      'Muslim Minority': { male: 0, female: 0, transgender: 0 },
+      'Other Minority': { male: 0, female: 0, transgender: 0 }
+    };
+    rows.forEach(r => {
+      // normalize subcategory name
+      const sub = (r.subcategory_name || r.subcategory || r.sub || '').trim();
+      if (!sub || !totals[sub]) return;
+
+      // If API already returned aggregated gender counts per row
+      if (typeof r.male_count !== 'undefined' || typeof r.female_count !== 'undefined' || typeof r.transgender_count !== 'undefined') {
+        totals[sub].male += Number(r.male_count || 0);
+        totals[sub].female += Number(r.female_count || 0);
+        totals[sub].transgender += Number(r.transgender_count || 0);
+        return;
+      }
+
+      // Otherwise, derive from gender_name/gender_id + count
+      const gender = (r.gender_name || (r.gender_id && {1:'Male',2:'Female',3:'Transgender'}[r.gender_id]) || '').trim();
+      const cnt = Number(r.count ?? r.value ?? 0) || 0;
+      if (/male/i.test(gender)) totals[sub].male += cnt;
+      else if (/female/i.test(gender)) totals[sub].female += cnt;
+      else totals[sub].transgender += cnt;
+    });
+    return totals;
+  }
+
+  // Compute category-level breakdown for the currently selected department + subcategory.
+  // Uses deptDetailRecords fetched by the department effect and is tolerant to field names.
+  function computeDeptCategoryBreakdown(subcategoryName) {
+    if (!subcategoryName) return [];
+
+    const getStartYear = (y) => {
+      if (!y) return "";
+      const m = String(y).match(/\d{4}/);
+      return m ? m[0] : "";
+    };
+
+    const normalize = (s) => String(s || "").trim();
+    const selYear = getStartYear(selectedDeptAcademicYear || latestAcademicYear || "");
+    const selDept = normalize(selectedDept);
+    const subNameNormalized = normalize(subcategoryName);
+
+    // Filter rows that match department, academic year and subcategory
+    const rows = (deptDetailRecords || []).filter(r => {
+      const rowYear = getStartYear(r.academic_year || r.academicYear || r.academic || "");
+      if (selYear && rowYear && rowYear !== selYear) return false;
+      const rowDept = normalize(r.department || r.dept || r.department_name);
+      if (selDept && rowDept !== selDept) return false;
+      const rowSub = normalize(r.subcategory_name || r.subcategory || r.sub || r.subcategory_name);
+      if (!rowSub) return false;
+      return rowSub === subNameNormalized;
+    });
+
+    // Build category map
+    const map = {};
+    const categoriesFromRows = Array.from(new Set(rows.map(r => normalize(r.category_name || r.category || r.category_name))));
+    const cats = categoriesFromRows.length ? categoriesFromRows : MASTER_CATEGORIES;
+
+    cats.forEach(cat => map[cat] = { male: 0, female: 0, transgender: 0 });
+
+    rows.forEach(r => {
+      const cat = normalize(r.category_name || r.category || r.category_name) || "Other";
+      if (!map[cat]) map[cat] = { male: 0, female: 0, transgender: 0 };
+
+      // Prefer aggregated fields if present
+      if (typeof r.male_count !== "undefined" || typeof r.female_count !== "undefined" || typeof r.transgender_count !== "undefined") {
+        map[cat].male += Number(r.male_count || 0);
+        map[cat].female += Number(r.female_count || 0);
+        map[cat].transgender += Number(r.transgender_count || 0);
+        return;
+      }
+
+      // Fallback: per-row gender + count fields
+      const gender = String(r.gender_name || (r.gender || "") || (r.gender_id ? ({1:'Male',2:'Female',3:'Transgender'}[r.gender_id]) : "")).trim();
+      const cnt = Number(r.count ?? r.filled_count ?? r.filled ?? r.value ?? 0) || 0;
+      if (/male/i.test(gender)) map[cat].male += cnt;
+      else if (/female/i.test(gender)) map[cat].female += cnt;
+      else map[cat].transgender += cnt;
+    });
+
+    // Convert to array for rendering
+    return Object.keys(map).map(category => ({ category, ...map[category] }));
+  }
+  // end computeDeptCategoryBreakdown
 
   // --- CHANGED: derive filtered arrays by latestAcademicYear and use them for rendering ---
   // Filter nonTeachingData by latest academic year
@@ -156,11 +309,21 @@ export default function OfficeDetails() {
       <div className="flex gap-4 mb-8">
         <button className={`px-6 py-3 rounded-2xl shadow-lg font-semibold text-lg transition-all duration-200 border-2 ${activeTab === "teaching" ? "bg-blue-600 text-white border-blue-600 scale-105" : "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"}`} onClick={() => setActiveTab("teaching")}>Teaching Staff</button>
         <button className={`px-6 py-3 rounded-2xl shadow-lg font-semibold text-lg transition-all duration-200 border-2 ${activeTab === "nonteaching" ? "bg-teal-600 text-white border-teal-600 scale-105" : "bg-white text-teal-600 border-teal-200 hover:bg-teal-50"}`} onClick={() => setActiveTab("nonteaching")}>Non-Teaching Staff</button>
+
+        {/* New: Department Entry Tab */}
+        <button
+          className={`px-6 py-3 rounded-2xl shadow-lg font-semibold text-lg transition-all duration-200 border-2 ${activeTab === "department" ? "bg-indigo-600 text-white border-indigo-600 scale-105" : "bg-white text-indigo-600 border-indigo-200 hover:bg-indigo-50"}`}
+          onClick={() => setActiveTab("department")}
+        >
+          Department Entry
+        </button>
       </div>
+
       {/* Academic Year Badge */}
       <div className="flex justify-end mb-8">
         <AcademicYearBadge year={latestAcademicYear} />
       </div>
+
       {loading ? (
         <div className="text-center py-12 text-gray-500">Loading...</div>
       ) : (
@@ -358,6 +521,139 @@ export default function OfficeDetails() {
               )}
             </div>
           )}
+
+          {/* New: Department Entry view (in-file, uses detailRecords) */}
+          {activeTab === "department" && (
+            <div className="bg-white rounded-3xl shadow-xl p-6 border border-gray-100">
+              <div className="grid md:grid-cols-3 gap-4 mb-6 items-end">
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Academic Year</label>
+                  <input type="text" readOnly value={selectedDeptAcademicYear || latestAcademicYear} className="w-full p-3 rounded-lg border bg-gray-100" />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Department</label>
+                  <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="w-full p-3 rounded-lg border">
+                    <option value="">Select Department</option>
+                    {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1">Year Slot</label>
+                  <div className="inline-block px-4 py-3 bg-white rounded-lg border">I Year</div>
+                </div>
+              </div>
+
+              {selectedDept ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {Object.keys(deptTotals).map(sub => {
+                     const t = deptTotals[sub];
+                     return (
+                       <div key={sub} className="bg-white rounded-2xl shadow-lg border p-6 cursor-pointer" onClick={() => {
+                         setDetailRow({ __type: 'departmentTotals', subcategory: sub, totals: t, department: selectedDept, academic_year: selectedDeptAcademicYear || latestAcademicYear });
+                         setShowDetailModal(true);
+                       }}>
+                         <h4 className="text-blue-700 font-semibold mb-4">{sub}</h4>
+                         <div className="flex justify-around">
+                           <div className="text-center">
+                             <p className="text-2xl font-bold text-blue-600">{t.male}</p>
+                             <p className="text-xs text-gray-500">Male</p>
+                           </div>
+                           <div className="text-center">
+                             <p className="text-2xl font-bold text-pink-600">{t.female}</p>
+                             <p className="text-xs text-gray-500">Female</p>
+                           </div>
+                           <div className="text-center">
+                             <p className="text-2xl font-bold text-purple-700">{t.transgender}</p>
+                             <p className="text-xs text-gray-500">Transgender</p>
+                           </div>
+                         </div>
+                       </div>
+                     )
+                   })}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-gray-500">Select a department to view its enrollment summary (PwBD / Muslim Minority / Other Minority)</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showDetailModal && detailRow && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 bg-black/40 backdrop-blur-sm"
+          onClick={() => setShowDetailModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 40 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 40 }}
+            className="bg-white/95 rounded-3xl shadow-2xl p-0 max-w-3xl w-full mx-4 overflow-hidden border border-blue-100 relative"
+            onClick={e => e.stopPropagation()}
+            style={{ boxShadow: '0 8px 32px rgba(31,38,135,0.12)' }}
+          >
+            <div className="flex items-center justify-between px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+              <div className="flex items-center gap-3">
+                <RiBarChartBoxLine className="text-3xl" />
+                <h3 className="text-xl font-bold">
+                  {detailRow.__type === 'departmentTotals' ? `${detailRow.department} - ${detailRow.subcategory}` : `${detailRow.subcategory || ''}`}{" "}
+                  <span className="text-sm font-normal ml-2">{detailRow.academic_year || (selectedDeptAcademicYear || latestAcademicYear)}</span>
+                </h3>
+              </div>
+              <button className="text-white text-2xl hover:text-blue-200" onClick={() => setShowDetailModal(false)}>×</button>
+            </div>
+
+            <div className="px-8 py-6">
+              {detailRow.__type === 'departmentTotals' ? (
+                <>
+                  {/* Category breakdown table for selected subcategory */}
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm text-gray-700">
+                      <thead>
+                        <tr className="bg-gradient-to-r from-blue-100 to-indigo-100">
+                          <th className="px-4 py-2 text-left font-bold">Category</th>
+                          <th className="px-4 py-2 text-center font-bold">Male</th>
+                          <th className="px-4 py-2 text-center font-bold">Female</th>
+                          <th className="px-4 py-2 text-center font-bold">Transgender</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const rows = computeDeptCategoryBreakdown(activeMinorityTab);
+                          if (!rows || rows.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={4} className="py-8 text-center text-gray-400">No data available for this subcategory and selection.</td>
+                              </tr>
+                            );
+                          }
+                          return rows.map(r => (
+                            <tr key={r.category} className="hover:bg-gray-50">
+                              <td className="px-4 py-2 font-semibold">{r.category}</td>
+                              <td className="px-4 py-2 text-center text-blue-700 font-bold">{r.male}</td>
+                              <td className="px-4 py-2 text-center text-pink-700 font-bold">{r.female}</td>
+                              <td className="px-4 py-2 text-center text-purple-700 font-bold">{r.transgender}</td>
+                            </tr>
+                          ));
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="py-8 text-center text-gray-500">No details available.</div>
+              )}
+            </div>
+
+            <div className="px-8 pb-6">
+              <button
+                className="w-full py-2 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition"
+                onClick={() => setShowDetailModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

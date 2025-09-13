@@ -29,10 +29,13 @@ function TeachingStaff() {
     additional_qualification: [],
     year_spent_other_than_teaching: 0,
     month_spent_other_than_teaching: 0,
+    academic_year: ""
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
-  const [staffData, setStaffData] = useState([]);
+
+  // normalize staff rows as object with .data for backward compatibility
+  const [staffData, setStaffData] = useState({ data: [] });
   const [academicYear, setAcademicYear] = useState("");
   const [editId, setEditId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -61,48 +64,22 @@ function TeachingStaff() {
   const GENDERS = ["Male", "Female", "Other"];
   const SOCIAL_CATEGORIES = ["OBC", "SC", "General", "Other"];
   const QUALIFICATIONS = ["Ph.D.", "M.Phil", "Postgraduate", "Graduate", "Other"];
-  const ADDITIONAL_QUALIFICATIONS = ["NET", "SLET", "None"];
   const RELIGIOUS_COMMUNITIES = ["Hindu", "Muslim", "Christian"];
-
-  // New dropdowns as per user request
   const BROAD_DISCIPLINE_GROUP_NAMES = [
-    "Computer Application",
-    "Commerce",
-    "Mathematics",
-    "Fine Arts",
-    "English",
-    "Physics",
-    "Management",
-    "Business Administration",
-    "Business Management",
-    "Chemistry",
-    "Tamil",
-    "Physical Education"
+    "Computer Application","Commerce","Mathematics","Fine Arts","English","Physics",
+    "Management","Business Administration","Business Management","Chemistry","Tamil","Physical Education"
   ];
   const BROAD_DISCIPLINE_GROUP_CATEGORIES = [
-    "IT & Computer",
-    "Commerce",
-    "Science",
-    "Fine Arts",
-    "Management",
-    "Physical Education"
+    "IT & Computer","Commerce","Science","Fine Arts","Management","Physical Education"
   ];
   const DEPARTMENTS = [
-    "Computer Applications",
-    "Commerce",
-    "Mathematics",
-    "English",
-    "Physics",
-    "Chemistry",
-    "Tamil",
-    "Business Administration",
-    "Physical Education"
+    "Computer Applications","Commerce","Mathematics","English","Physics","Chemistry","Tamil","Business Administration","Physical Education"
   ];
  
    
-  // Fetch latest academic year from office_users table
+  // Fetch latest office academic year for the badge
   useEffect(() => {
-    async function fetchAcademicYear() {
+    async function fetchOfficeAcademicYear() {
       try {
         const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
         if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
@@ -110,28 +87,32 @@ function TeachingStaff() {
         setOfficeAcademicYear("");
       }
     }
-    fetchAcademicYear();
+    fetchOfficeAcademicYear();
   }, []);
 
+  // Centralized fetch for staff rows — normalize response to { data: [...] }
+  const fetchStaffData = async () => {
+    try {
+      const response = await axios.get("http://localhost:5000/api/office/teaching-staff");
+      const rows = Array.isArray(response.data?.data) ? response.data.data : (Array.isArray(response.data) ? response.data : []);
+      setStaffData({ data: rows });
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      setStaffData({ data: [] });
+    }
+  };
+
+  // Fetch rows on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await axios.get("http://localhost:5000/api/office/teaching-staff");
-        setStaffData(response.data);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      }
-    };
-
-    fetchData();
+    fetchStaffData();
   }, []);
 
-  // Fetch academic year from backend (example endpoint)
+  // Fetch current academic year to use for create/edit
   useEffect(() => {
     async function fetchAcademicYear() {
       try {
         const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
-        if (res.data.success) setAcademicYear(res.data.academic_year);
+        if (res.data.success) setAcademicYear(res.data.academic_year || "");
       } catch {
         setAcademicYear("");
       }
@@ -139,18 +120,82 @@ function TeachingStaff() {
     fetchAcademicYear();
   }, []);
 
+  // Keep form.academic_year in sync
   useEffect(() => {
     setForm(prev => ({ ...prev, academic_year: academicYear }));
   }, [academicYear]);
 
-  useEffect(() => {
-    async function fetchLockStatus() {
-      if (!academicYear) return;
-      const res = await axios.get(`http://localhost:5000/api/office/teaching-staff/is-locked?academic_year=${academicYear}`);
-      setIsLocked(res.data.isLocked);
+  // centralised lock fetch so we can call it after final submit too
+  const fetchLockStatus = async (year = academicYear) => {
+    if (!year) {
+      setIsLocked(false);
+      return;
     }
+    try {
+      const res = await axios.get(`http://localhost:5000/api/office/teaching-staff/is-locked?academic_year=${year}`);
+      setIsLocked(!!res.data.isLocked);
+    } catch {
+      setIsLocked(false);
+    }
+  };
+
+  useEffect(() => {
     fetchLockStatus();
   }, [academicYear, message]);
+
+  // Reset form / UI when academic year changes (mirrors non_teaching_staff behavior)
+  useEffect(() => {
+    // Reset editing and form when academic year flips
+    setEditId(null);
+    setShowForm(false);
+    setCurrentPage(1);
+    // ensure the form has academic_year set and other defaults
+    setForm({
+      country_name: "India",
+      department: "",
+      name: "",
+      gender: "",
+      date_of_birth: "",
+      email: "",
+      mobile_no: "",
+      pan_number: "",
+      designation: "",
+      nature_of_appointment: "",
+      job_status: "Continue",
+      social_category: "",
+      religious_community: "",
+      pwbd_status: false,
+      date_of_joining: "",
+      date_of_joining_profession: "",
+      date_of_leaving: "",
+      date_of_status_change: "",
+      highest_qualification: "",
+      programme_highest_qualification: "",
+      broad_discipline_group_name: "",
+      broad_discipline_group_category: "",
+      additional_qualification: [],
+      year_spent_other_than_teaching: 0,
+      month_spent_other_than_teaching: 0,
+      academic_year: academicYear
+    });
+    // clear transient lock until backend check completes
+    setIsLocked(false);
+    fetchStaffData();
+  }, [academicYear]);
+
+  // Refresh rows when a successful message appears (same pattern used in non_teaching_staff)
+  useEffect(() => {
+    if (message?.type === "success") {
+      fetchStaffData();
+      const t = setTimeout(() => setMessage(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [message]);
+
+  // Reset to page 1 when row count changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [staffData.data.length]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -158,8 +203,8 @@ function TeachingStaff() {
       setForm((prev) => ({
         ...prev,
         additional_qualification: checked
-          ? [...prev.additional_qualification, value]
-          : prev.additional_qualification.filter((q) => q !== value)
+          ? [...(prev.additional_qualification || []), value]
+          : (prev.additional_qualification || []).filter((q) => q !== value)
       }));
     } else if (type === "checkbox" && name === "pwbd_status") {
       setForm((prev) => ({ ...prev, pwbd_status: checked }));
@@ -169,13 +214,11 @@ function TeachingStaff() {
   };
 
   const handleEdit = (row) => {
-    // Helper to format date for input[type="date"]
     const formatDate = (dateStr) => {
       if (!dateStr) return "";
       const match = dateStr.match(/^\d{4}-\d{2}-\d{2}/);
       return match ? match[0] : "";
     };
-
     setForm({
       ...row,
       date_of_birth: formatDate(row.date_of_birth),
@@ -184,17 +227,10 @@ function TeachingStaff() {
       date_of_leaving: formatDate(row.date_of_leaving),
       date_of_status_change: formatDate(row.date_of_status_change),
       additional_qualification: row.additional_qualification?.split(",") || [],
+      academic_year: academicYear,
     });
     setEditId(row.id);
-  };
-
-  const fetchStaffData = async () => {
-    try {
-      const response = await axios.get("http://localhost:5000/api/office/teaching-staff");
-      setStaffData(response.data);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
+    setShowForm(true);
   };
 
   const handleSubmit = async (e) => {
@@ -204,7 +240,7 @@ function TeachingStaff() {
     try {
       const payload = {
         ...form,
-        academic_year: academicYear, // Ensure academic_year is sent
+        academic_year: academicYear,
         additional_qualification: Array.isArray(form.additional_qualification)
           ? form.additional_qualification.join(",")
           : form.additional_qualification || "None"
@@ -217,7 +253,9 @@ function TeachingStaff() {
         setMessage({ type: "success", text: "Teaching staff entry submitted successfully!" });
       }
       setEditId(null);
-      setForm({
+      setShowForm(false);
+      // reset form but keep academic_year
+      setForm(prev => ({
         country_name: "India",
         department: "",
         name: "",
@@ -243,21 +281,16 @@ function TeachingStaff() {
         additional_qualification: [],
         year_spent_other_than_teaching: 0,
         month_spent_other_than_teaching: 0,
-      });
-      // Fetch latest data immediately
+        academic_year: prev.academic_year || academicYear
+      }));
       await fetchStaffData();
-    } catch {
+    } catch (err) {
       setMessage({ type: "error", text: "Failed to submit entry. Please try again." });
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
-
-  useEffect(() => {
-    if (message?.type === "success") {
-      const timer = setTimeout(() => setMessage(null), 3000); // 3 seconds
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
 
   // Filter to only show current academic year records
   const staffRows = staffData.data || [];
@@ -397,9 +430,11 @@ function TeachingStaff() {
                     office_id: officeId,
                     name: officeName
                   });
+                  // refresh lock status from backend and rows
+                  await fetchLockStatus(academicYear);
+                  await fetchStaffData();
                   setShowDeclaration(false);
-                  setIsLocked(true);
-                  setMessage({ type: "success", text: "Final submission completed." });
+                  setMessage({ type: "success", text: "Final submission completed and locked. Only an administrator can unlock." });
                   setTimeout(() => setMessage(null), 3000);
                 }}
               >
@@ -415,12 +450,25 @@ function TeachingStaff() {
           </div>
         </div>
       )}
+      {/* Lock banner (show when this academic year is locked) */}
+      {isLocked && (
+        <div className="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
+          This academic year is locked. Editing and final submission are disabled. Only an administrator can unlock.
+        </div>
+      )}
       {/* Add Teaching Staff Button */}
       {!showForm && !editId && (
         <div className="flex justify-end mb-6">
           <button
             className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold shadow hover:scale-105 transition-transform"
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              if (isLocked) {
+                setMessage({ type: 'error', text: 'This academic year is locked. Only an administrator can unlock.' });
+                setTimeout(() => setMessage(null), 3000);
+                return;
+              }
+              setShowForm(true);
+            }}
           >
             Add Teaching Staff
           </button>
@@ -655,21 +703,14 @@ function TeachingStaff() {
                     : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 } transition-all`}
             >
-              {loading
-                ? "Submitting..."
-                : editId
-                  ? "Save Changes"
-                  : "Submit"}
+              {loading ? "Submitting..." : editId ? "Save Changes" : "Submit"}
             </button>
             {(editId || showForm) && (
               <button
                 type="button"
                 disabled={isLocked}
                 className={`ml-4 py-4 px-10 rounded-xl font-semibold text-gray-700 text-lg shadow-lg
-                  ${isLocked
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-gray-200 hover:bg-gray-300"
-                  } transition-all`}
+                  ${isLocked ? "bg-gray-400 cursor-not-allowed" : "bg-gray-200 hover:bg-gray-300"} transition-all`}
                 onClick={() => {
                   setEditId(null);
                   setShowForm(false);
@@ -699,6 +740,7 @@ function TeachingStaff() {
                     additional_qualification: [],
                     year_spent_other_than_teaching: 0,
                     month_spent_other_than_teaching: 0,
+                    academic_year: academicYear
                   });
                 }}
               >
@@ -729,7 +771,6 @@ function TeachingStaff() {
               </thead>
               <tbody>
                 {paginatedRows.map(row => {
-                  // Helper to format date as YYYY-MM-DD
                   const formatDate = (dateStr) => {
                     if (!dateStr) return "";
                     const match = dateStr.match(/^\d{4}-\d{2}-\d{2}/);
@@ -745,10 +786,7 @@ function TeachingStaff() {
                       <td className="px-6 py-4 text-center">
                         <button
                           className={`px-3 py-1 rounded font-semibold transition
-                            ${isLocked
-                              ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                            }`}
+                            ${isLocked ? "bg-gray-400 text-gray-200 cursor-not-allowed" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                           onClick={() => handleEdit(row)}
                           disabled={isLocked}
                           title={isLocked ? "Editing is disabled after final submission" : "Edit"}
