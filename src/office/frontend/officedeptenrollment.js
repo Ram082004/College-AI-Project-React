@@ -326,9 +326,11 @@ export default function DeptEnrollment() {
         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
       });
       if (res.data.success) {
+        // successful save — clear the form and refresh summary only.
+        // Do NOT auto-enter edit mode (handleLoadForEdit sets isEditMode = true).
         setGlobalMessage({ type: 'success', text: res.data.message || 'Saved to officedept_data' });
         setEnrollmentData(makeEmptyData());
-        await handleLoadForEdit();
+        setExistingMap({}); // clear any previous map
         await fetchSummaryRecords();
       } else {
         setGlobalMessage({ type: 'error', text: res.data.message || 'Save failed' });
