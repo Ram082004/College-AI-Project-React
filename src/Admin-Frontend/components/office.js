@@ -37,7 +37,8 @@ export default function Admin({ adminAcademicYear }) {
   const [globalMessage, setGlobalMessage] = useState(null);
   const [latestAcademicYear, setLatestAcademicYear] = useState("");
 
-  const academicYearOptions = ['2024-2025']; // This should be updated dynamically if needed
+  // Make academic year options dynamic like admin.js
+  const academicYearOptions = ['2024-2025', '2025-2026', '2026-2027', '2027-2028'];
 
   // Fetch all office users
   const fetchOfficeUsers = async () => {
@@ -59,10 +60,32 @@ export default function Admin({ adminAcademicYear }) {
   }, []);
 
   useEffect(() => {
-    if (officeUsers.length > 0) {
-      setLatestAcademicYear(officeUsers[0].academic_year || "");
+    async function fetchAdminAcademicYear() {
+      try {
+        const res = await axios.get(`${API_BASE}/admin/all`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
+        });
+        if (res.data?.admins?.length) {
+          const currentAcademicYear = res.data.admins[0].academic_year || "";
+          setLatestAcademicYear(currentAcademicYear);
+          // Set default academic year for new user form to current admin academic year
+          setNewOfficeUser(prev => ({ ...prev, academic_year: currentAcademicYear }));
+        }
+      } catch {
+        setLatestAcademicYear("");
+      }
     }
-  }, [officeUsers]);
+    fetchAdminAcademicYear();
+  }, []);
+
+  useEffect(() => {
+    if (officeUsers.length > 0) {
+      const userAcademicYear = officeUsers[0].academic_year || "";
+      if (!latestAcademicYear) {
+        setLatestAcademicYear(userAcademicYear);
+      }
+    }
+  }, [officeUsers, latestAcademicYear]);
 
   // New office user form change
   const handleNewOfficeUserChange = (e) => {
@@ -84,7 +107,8 @@ export default function Admin({ adminAcademicYear }) {
       if (res.data.success) {
         setGlobalMessage({ type: 'success', text: res.data.message });
         setNewOfficeUser({
-          name: '', username: '', email: '', mobile: '', office_id: '', password: '', academic_year: ''
+          name: '', username: '', email: '', mobile: '', office_id: '', password: '', 
+          academic_year: latestAcademicYear // Reset to current academic year
         });
         setShowOfficeUserForm(false);
         fetchOfficeUsers();
@@ -120,7 +144,7 @@ export default function Admin({ adminAcademicYear }) {
   const handleOfficeUserCancelEdit = () => {
     setOfficeUserEditId(null);
     setOfficeUserEditForm({
-      name: '', username: '', email: '', mobile: '', office_id: '', password: '',
+      name: '', username: '', email: '', mobile: '', office_id: '', password: '', academic_year: ''
     });
   };
 
@@ -208,6 +232,8 @@ export default function Admin({ adminAcademicYear }) {
       {globalMessage && (
         <div className={`mb-6 px-6 py-3 rounded-2xl shadow font-semibold text-base ${globalMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{globalMessage.text}</div>
       )}
+      
+      {/* Enhanced form with dynamic academic year dropdown */}
       {showOfficeUserForm && (
         <form onSubmit={handleNewOfficeUserSubmit} className="mb-10 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl shadow-xl border border-blue-100 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -217,18 +243,29 @@ export default function Admin({ adminAcademicYear }) {
             <input name="mobile" value={newOfficeUser.mobile} onChange={handleNewOfficeUserChange} placeholder="Mobile" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="office_id" value={newOfficeUser.office_id} onChange={handleNewOfficeUserChange} placeholder="Office ID" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
             <input name="password" value={newOfficeUser.password} onChange={handleNewOfficeUserChange} placeholder="Password" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
-            <select
-              name="academic_year"
-              value={newOfficeUser.academic_year}
-              onChange={handleNewOfficeUserChange}
-              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
-              required
-            >
-              <option value="">Select Academic Year</option>
-              {academicYearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+            
+            {/* Enhanced Academic Year Dropdown like admin.js */}
+            <div className="relative">
+              <select
+                name="academic_year"
+                value={newOfficeUser.academic_year}
+                onChange={handleNewOfficeUserChange}
+                className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400 w-full bg-blue-50 text-blue-800 font-semibold"
+                required
+              >
+                <option value="">Select Academic Year</option>
+                {academicYearOptions.map(year => (
+                  <option key={year} value={year} className={year === latestAcademicYear ? 'bg-blue-100 font-bold' : ''}>
+                    {year} {year === latestAcademicYear ? '(Current)' : ''}
+                  </option>
+                ))}
+              </select>
+              {newOfficeUser.academic_year && (
+                <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                  Selected: {newOfficeUser.academic_year}
+                </div>
+              )}
+            </div>
           </div>
           <div className="mt-6 flex gap-3 justify-end">
             <button type="submit" className="px-6 py-2 bg-gradient-to-r from-green-500 to-green-700 text-white rounded-2xl font-bold shadow hover:scale-105 transition-transform">Save</button>
@@ -236,6 +273,8 @@ export default function Admin({ adminAcademicYear }) {
           </div>
         </form>
       )}
+
+      {/* Enhanced edit modal with dynamic academic year dropdown */}
       {officeUserEditId !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
           <form
@@ -275,18 +314,27 @@ export default function Admin({ adminAcademicYear }) {
               </div>
               <div>
                 <label className="block font-bold text-blue-700 mb-2">Academic Year</label>
-                <select
-                  name="academic_year"
-                  value={officeUserEditForm.academic_year}
-                  onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, academic_year: e.target.value })}
-                  className="p-3 border-2 border-blue-200 rounded-xl w-full"
-                  required
-                >
-                  <option value="">Select Academic Year</option>
-                  {academicYearOptions.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    name="academic_year"
+                    value={officeUserEditForm.academic_year}
+                    onChange={e => setOfficeUserEditForm({ ...officeUserEditForm, academic_year: e.target.value })}
+                    className="p-3 border-2 border-blue-200 rounded-xl w-full bg-blue-50 text-blue-800 font-semibold focus:ring-2 focus:ring-blue-400"
+                    required
+                  >
+                    <option value="">Select Academic Year</option>
+                    {academicYearOptions.map(year => (
+                      <option key={year} value={year} className={year === latestAcademicYear ? 'bg-blue-100 font-bold' : ''}>
+                        {year} {year === latestAcademicYear ? '(Current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {officeUserEditForm.academic_year && (
+                    <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                      {officeUserEditForm.academic_year}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="mt-6 flex gap-3 justify-end">

@@ -67,7 +67,7 @@ const OfficeLogin = ({ onLoginSuccess, onBack }) => {
       } else if (err.code === 'ERR_NETWORK') {
         setError('Unable to connect to server. Please check your connection.');
       } else {
-        setError('An error occurred. Please try again.');
+        setError('An Invalid username or password');
       }
     } finally {
       setIsLoading(false);

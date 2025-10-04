@@ -83,6 +83,10 @@ export default function DeptEnrollment() {
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
+  // Add state to track all departments completion status
+  const [allDepartmentsStatus, setAllDepartmentsStatus] = useState({});
+  const [loadingDepartmentStatus, setLoadingDepartmentStatus] = useState(false);
+
   useEffect(() => {
     if (!globalMessage) return;
     const tid = setTimeout(() => setGlobalMessage(null), 5000);
@@ -103,15 +107,19 @@ export default function DeptEnrollment() {
   useEffect(() => {
     // Reset to first page and only fetch when a department is selected.
     setCurrentPage(1);
-    if (selectedDept) {
-      fetchSummaryRecords();
+    if (selectedDept && (selectedAcademicYear || officeUserYear)) {
+      // Add slight delay to ensure all state is updated
+      const timer = setTimeout(() => {
+        fetchSummaryRecords();
+      }, 100);
+      return () => clearTimeout(timer);
     } else {
       // When no department selected, clear any previously shown details
       setDetailRecords([]);
       setSummaryRecords([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAcademicYear, selectedDept]);
+  }, [selectedAcademicYear, selectedDept, degreeLevel, officeUserYear]);
 
   // Set degreeLevel automatically based on selected department and lock when PG-only
   useEffect(() => {
@@ -313,6 +321,76 @@ export default function DeptEnrollment() {
     setShowConfirm(true);
   };
 
+  // Add function to check completion status for all departments
+  async function checkAllDepartmentsCompletion() {
+    if (!selectedAcademicYear && !officeUserYear) return;
+    
+    setLoadingDepartmentStatus(true);
+    try {
+      const statusPromises = DEPT_OPTIONS.map(async (dept) => {
+        try {
+          const degreeLevel = PG_DEPTS.includes(dept) ? 'PG' : 'UG';
+          const res = await axios.get(API.OFFICE_DEPT_GET, {
+            params: {
+              academic_year: selectedAcademicYear || officeUserYear,
+              department: dept,
+              degree_level: degreeLevel,
+              year: yearSlot
+            },
+            headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+          });
+          
+          const hasData = res.data.success && (res.data.rows || []).length > 0;
+          const hasNonZeroData = res.data.success && (res.data.rows || []).some(row => (row.count || 0) > 0);
+          
+          return {
+            department: dept,
+            degreeLevel: degreeLevel,
+            status: hasNonZeroData ? 'Completed' : (hasData ? 'Incompleted' : 'Incompleted')
+          };
+        } catch (error) {
+          return {
+            department: dept,
+            degreeLevel: PG_DEPTS.includes(dept) ? 'PG' : 'UG',
+            status: 'Incompleted'
+          };
+        }
+      });
+
+      const results = await Promise.all(statusPromises);
+      const statusMap = {};
+      results.forEach(result => {
+        statusMap[result.department] = {
+          status: result.status,
+          degreeLevel: result.degreeLevel
+        };
+      });
+      
+      setAllDepartmentsStatus(statusMap);
+    } catch (error) {
+      console.error('Error checking departments completion:', error);
+      // Set all departments as Incompleted on error
+      const statusMap = {};
+      DEPT_OPTIONS.forEach(dept => {
+        statusMap[dept] = {
+          status: 'Incompleted',
+          degreeLevel: PG_DEPTS.includes(dept) ? 'PG' : 'UG'
+        };
+      });
+      setAllDepartmentsStatus(statusMap);
+    } finally {
+      setLoadingDepartmentStatus(false);
+    }
+  }
+
+  // Call this function when academic year changes or after successful submissions
+  useEffect(() => {
+    if (selectedAcademicYear || officeUserYear) {
+      checkAllDepartmentsCompletion();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAcademicYear, officeUserYear]);
+
   const handleConfirmSubmit = async () => {
     if (officedeptApiAvailable === false) {
       setGlobalMessage({ type: 'error', text: 'Create API not available on server. Register /api/office/officedept/create' });
@@ -326,12 +404,11 @@ export default function DeptEnrollment() {
         headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
       });
       if (res.data.success) {
-        // successful save — clear the form and refresh summary only.
-        // Do NOT auto-enter edit mode (handleLoadForEdit sets isEditMode = true).
         setGlobalMessage({ type: 'success', text: res.data.message || 'Saved to officedept_data' });
         setEnrollmentData(makeEmptyData());
-        setExistingMap({}); // clear any previous map
+        setExistingMap({});
         await fetchSummaryRecords();
+        await checkAllDepartmentsCompletion(); // Refresh department status
       } else {
         setGlobalMessage({ type: 'error', text: res.data.message || 'Save failed' });
       }
@@ -419,6 +496,7 @@ export default function DeptEnrollment() {
         setEnrollmentData(makeEmptyData());
         setIsEditMode(false);
         await fetchSummaryRecords();
+        await checkAllDepartmentsCompletion(); // Refresh department status
       } else {
         setGlobalMessage({ type: 'error', text: res.data.message || 'Update failed' });
       }
@@ -547,6 +625,7 @@ export default function DeptEnrollment() {
       <h2 className="text-2xl font-bold mb-4">Department Entry</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* Academic Year - First */}
         <div>
           <label className="block text-sm font-semibold mb-1">Academic Year</label>
           {officeUserYear ? (
@@ -559,16 +638,7 @@ export default function DeptEnrollment() {
           )}
         </div>
 
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <label className="block text-sm font-semibold mb-1">Department</label>
-            <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="w-full p-3 rounded-lg border">
-              <option value="">Select Department</option>
-              {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-        </div>
-
+        {/* Degree Level - Second */}
         <div>
           <label className="block text-sm font-semibold mb-1">Degree Level</label>
           {degreeReadOnly ? (
@@ -581,6 +651,16 @@ export default function DeptEnrollment() {
           )}
         </div>
 
+        {/* Department - Third */}
+        <div>
+          <label className="block text-sm font-semibold mb-1">Department</label>
+          <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="w-full p-3 rounded-lg border">
+            <option value="">Select Department</option>
+            {DEPT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+
+        {/* Year Slot - Fourth */}
         <div>
           <label className="block text-sm font-semibold mb-1">Year Slot</label>
           <div className="inline-block px-4 py-3 bg-white rounded-lg border">{yearSlot}</div>
@@ -698,6 +778,7 @@ export default function DeptEnrollment() {
 
             {renderPagination()}
 
+            {/* Subcategory summary cards */}
             <div className="mb-6 mt-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {Object.values(subcategories).map(sub => {
@@ -725,18 +806,135 @@ export default function DeptEnrollment() {
               </div>
             </div>
 
-            {/* Centered Final Submission for departmental summary */}
-            {summaryRecords.length > 0 && (
+           
+
+            {/* Department Completion Status Container - MOVED BELOW Final Submission */}
+            <div className="flex justify-center mt-6 mb-6">
+              <div className="bg-blue-50/60 rounded-2xl p-6 shadow-sm border border-blue-100 flex flex-col gap-4 w-full max-w-4xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                        <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" fill="#2563eb"/>
+                      </svg>
+                    </span>
+                    <h4 className="text-lg font-semibold text-blue-900">Department Completion Status</h4>
+                  </div>
+                  <span className="text-sm text-blue-700 font-medium">
+                    Academic Year: {selectedAcademicYear || officeUserYear || 'N/A'}
+                  </span>
+                </div>
+                
+                {loadingDepartmentStatus ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent"></div>
+                    <span className="ml-2 text-blue-600">Loading department status...</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {/* Split departments into rows of 5 */}
+                    {Array.from({ length: Math.ceil(DEPT_OPTIONS.length / 5) }, (_, rowIndex) => (
+                      <div key={rowIndex} className="flex gap-3 justify-center">
+                        {DEPT_OPTIONS.slice(rowIndex * 5, (rowIndex + 1) * 5).map(dept => {
+                          const deptStatus = allDepartmentsStatus[dept] || { status: 'Incompleted', degreeLevel: 'UG' };
+                          const isCompleted = deptStatus.status === 'Completed';
+                          
+                          return (
+                            <div
+                              key={dept}
+                              className="flex flex-col items-center justify-center px-3 py-4 rounded-lg border shadow-sm transition-all hover:shadow-md cursor-pointer"
+                              style={{
+                                minWidth: 140,
+                                maxWidth: 160,
+                                background: isCompleted ? '#f6fff4' : '#fffbe6',
+                                borderColor: isCompleted ? '#b7f5c2' : '#ffe9a7',
+                                boxShadow: '0 1px 4px 0 rgba(0,0,0,0.03)'
+                              }}
+                              onClick={() => {
+                                setSelectedDept(dept);
+                                setDegreeLevel(deptStatus.degreeLevel);
+                              }}
+                            >
+                              <span className="mb-2">
+                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                                  <path 
+                                    d="M12 14l9-5-9-5-9 5 9 5z M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" 
+                                    stroke={isCompleted ? "#10b981" : "#f59e0b"} 
+                                    strokeWidth="2" 
+                                    strokeLinecap="round" 
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </span>
+                              <span className="font-medium text-xs text-gray-900 mb-1 text-center leading-tight">
+                                {dept}
+                              </span>
+                              <span className="text-xs text-gray-600 mb-2">
+                                ({deptStatus.degreeLevel})
+                              </span>
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                isCompleted 
+                                  ? 'bg-green-100 text-green-700' 
+                                  : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {isCompleted ? 'Completed' : 'Incompleted'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Progress Summary at bottom of container */}
+                <div className="flex justify-center mt-4 pt-4 border-t border-blue-200">
+                  <div className="text-center">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          Completed: {Object.values(allDepartmentsStatus).filter(d => d.status === 'Completed').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          Pending: {Object.values(allDepartmentsStatus).filter(d => d.status === 'Incompleted').length}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          Total: {DEPT_OPTIONS.length}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+             {/* Final Submission Button - Show ONLY when ALL departments are completed */}
+            {summaryRecords.length > 0 && 
+             Object.keys(allDepartmentsStatus).length > 0 && 
+             Object.values(allDepartmentsStatus).every(d => d.status === 'Completed') && (
                <div className="flex justify-center my-8">
-                <button
-                  className={`px-8 py-3 rounded-xl font-bold shadow-lg transition-transform ${isLocked ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:scale-105'}`}
-                  onClick={() => { if (!isLocked) { setShowFinalSubmission(true); setFinalAccepted(false); } }}
-                  disabled={isLocked}
-                >
-                  Final Submission (All Departments)
-                </button>
+                <div className="text-center">
+                  <div className="mb-2 text-sm text-green-600 font-medium">
+                    ✅ All departments ({Object.values(allDepartmentsStatus).filter(d => d.status === 'Completed').length}/{DEPT_OPTIONS.length}) have completed data submission
+                  </div>
+                  <button
+                    className={`px-8 py-3 rounded-xl font-bold shadow-lg transition-transform ${isLocked ? 'bg-gray-400 text-gray-200 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white hover:scale-105'}`}
+                    onClick={() => { if (!isLocked) { setShowFinalSubmission(true); setFinalAccepted(false); } }}
+                    disabled={isLocked}
+                  >
+                    Final Submission (All Departments Completed)
+                  </button>
+                </div>
                </div>
              )}
+
           </div>
         ) : (
           <div className="mt-10 text-center text-gray-500">
@@ -809,7 +1007,7 @@ export default function DeptEnrollment() {
       {/* show informative banner when locked */}
       {isLocked && (
         <div className="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 font-semibold">
-          This academic year is locked. Editing and final submission are disabled. Only an administrator can unlock.
+          This academic year is locked. Editing and final submission are disabled. Only an Nodel can unlock.
         </div>
       )}
 

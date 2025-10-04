@@ -64,7 +64,7 @@ const DepartmentLogin = ({ onLoginSuccess, onBack }) => {
         setError(`${year} Academic Year details are already finished!`);
         setIsLocked(true);
       } else {
-        setError('An error occurred. Please try again.');
+        setError('An Invalid username or password');
       }
     } finally {
       setIsLoading(false);

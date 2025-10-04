@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import ErrorBoundary from './Admin-Frontend/components/ErrorBoundary';
 import LoginSelection from './Admin-Frontend/components/LoginSelection';
+import AdminPrincipalLogin from './Admin-Frontend/components/AdminPrincipalLogin';
 import AdminLogin from './Admin-Frontend/components/Login';
 import DepartmentLogin from './department/frontend/departmentlogin';
 import OfficeLogin from './office/frontend/OfficeLogin';
@@ -12,11 +13,13 @@ import ForgotPassword from './Admin-Frontend/components/ForgetPassword';
 import PrincipleLogin from './principle/frontend/principleLogin';
 import PrincipleDashboard from './principle/frontend/principleDashboard';
 
-function App() {
+// Main App Component
+function AppContent() {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginType, setLoginType] = useState(null);
   const [userType, setUserType] = useState(null);
+  const location = useLocation();
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
@@ -59,6 +62,34 @@ function App() {
   };
 
   const renderLoginComponent = () => {
+    // Check if we're on the admin route
+    if (location.pathname === '/admin-portal') {
+      if (showForgotPassword && loginType === 'admin') {
+        return <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />;
+      }
+
+      switch (loginType) {
+        case 'admin':
+          return (
+            <AdminLogin
+              onForgotClick={() => setShowForgotPassword(true)}
+              onLoginSuccess={() => handleLoginSuccess('admin')}
+              onBack={handleBackToSelection}
+            />
+          );
+        case 'principle':
+          return (
+            <PrincipleLogin
+              onLoginSuccess={() => handleLoginSuccess('principle')}
+              onBack={handleBackToSelection}
+            />
+          );
+        default:
+          return <AdminPrincipalLogin onSelect={handleLoginSelection} />;
+      }
+    }
+
+    // Default staff portal (main route)
     if (showForgotPassword && loginType === 'admin') {
       return <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />;
     }
@@ -98,11 +129,23 @@ function App() {
     }
   };
 
+  // If logged in, show dashboard regardless of route
+  if (isLoggedIn) {
+    return renderDashboard();
+  }
+
+  return renderLoginComponent();
+}
+
+function App() {
   return (
     <Router>
       <ErrorBoundary>
         <div className="min-h-screen bg-gradient-to-br from-navy-800 to-navy-900">
-          {isLoggedIn ? renderDashboard() : renderLoginComponent()}
+          <Routes>
+            <Route path="/" element={<AppContent />} />
+            <Route path="/admin-portal" element={<AppContent />} />
+          </Routes>
         </div>
       </ErrorBoundary>
     </Router>

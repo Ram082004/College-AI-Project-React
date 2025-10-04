@@ -18,11 +18,14 @@ const yearSlots = ['I Year', 'II Year', 'III Year'];
 
 export default function DepartmentDashboard() {
   const [userData, setUserData] = useState(null);
-  const [activeTab, setActiveTab] = useState('deptwelcomedashboard'); // Default to dashboard
+  const [activeTab, setActiveTab] = useState('deptwelcomedashboard');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [globalMessage] = useState(null);
   const [loginMessage, setLoginMessage] = useState(null);
+  
+  // Add HOD name state
+  const [hodName, setHodName] = useState('');
 
   // For passing to child components
   const [academicYears, setAcademicYears] = useState([]);
@@ -36,6 +39,24 @@ export default function DepartmentDashboard() {
     }
     setUserData(JSON.parse(storedUser));
   }, []);
+
+  // Add HOD fetch function
+  const fetchHodName = async () => {
+    if (!userData?.dept_id) return;
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/department-user/hod/${userData.dept_id}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
+      );
+      if (res.data.success && res.data.hod_name) {
+        setHodName(res.data.hod_name);
+      } else {
+        setHodName('Not Available');
+      }
+    } catch {
+      setHodName('Not Available');
+    }
+  };
 
   // Fetch academic years for the department
   useEffect(() => {
@@ -53,6 +74,7 @@ export default function DepartmentDashboard() {
       }
     }
     fetchYears();
+    fetchHodName(); // Add this line
   }, [userData]);
 
   useEffect(() => {
@@ -98,6 +120,11 @@ export default function DepartmentDashboard() {
             <p className="text-sm text-gray-500">
               {userData?.department} - {userData?.dept_id}
             </p>
+            {/* Add HOD name here */}
+            <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+              <p className="text-xs font-medium text-blue-600">HOD:-</p>
+              <p className="text-sm font-semibold text-blue-800">{hodName}</p>
+            </div>
           </div>
           <nav className="space-y-2">
             <motion.button

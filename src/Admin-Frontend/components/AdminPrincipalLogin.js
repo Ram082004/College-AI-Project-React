@@ -1,40 +1,40 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { FaBuilding, FaCity } from 'react-icons/fa';
+import { FaShieldAlt, FaGraduationCap } from 'react-icons/fa';
 
-// Only Department and Office login types
+// Only Admin and Principal login types
 const loginTypes = [
   { 
-    type: 'department', 
-    label: 'Department', 
-    icon: <FaBuilding className="text-4xl" />, 
-    color: 'from-blue-600 to-cyan-600',
-    description: 'Departmental Access Portal'
+    type: 'admin', 
+    label: 'Nodal Officer', 
+    icon: <FaShieldAlt className="text-4xl" />, 
+    color: 'from-indigo-600 to-blue-700',
+    description: 'System Management & Control'
   },
   { 
-    type: 'office', 
-    label: 'Office', 
-    icon: <FaCity className="text-4xl" />, 
-    color: 'from-cyan-600 to-teal-600',
-    description: 'Administrative Operations'
+    type: 'principle', 
+    label: 'Principal', 
+    icon: <FaGraduationCap className="text-4xl" />, 
+    color: 'from-teal-600 to-emerald-600',
+    description: 'Institution Management'
   },
 ];
 
 const quotes = [
-  "Education is the most powerful weapon which you can use to change the world. – Nelson Mandela",
-  "The roots of education are bitter, but the fruit is sweet. – Aristotle",
-  "An investment in knowledge pays the best interest. – Benjamin Franklin",
-  "Education is not preparation for life; education is life itself. – John Dewey"
+  "Leadership is not about being in charge. It is about taking care of those in your charge.",
+  "Excellence is never an accident. It is always the result of high intention, sincere effort, and intelligent execution.",
+  "The best way to predict the future is to create it. – Peter Drucker",
+  "Quality is not an act, it is a habit. – Aristotle"
 ];
 
-export default function LoginSelection({ onSelect }) {
+export default function AdminPrincipalLogin({ onSelect }) {
   const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
 
   return (
     <div className="min-h-screen w-full flex flex-col bg-[#020617] bg-gradient-to-br from-navy-900/50 to-blue-900/30">
       {/* Animated Background */}
       <div className="fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-gradient-size bg-gradient-animate bg-gradient-to-br from-blue-500/5 via-indigo-500/5 to-purple-500/5"></div>
+        <div className="absolute inset-0 bg-gradient-size bg-gradient-animate bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-blue-500/5"></div>
         <div className="absolute inset-0 backdrop-blur-[100px]"></div>
       </div>
 
@@ -47,9 +47,9 @@ export default function LoginSelection({ onSelect }) {
             transition={{ duration: 0.7 }}
             className="relative inline-block"
           >
-            <span className="absolute -inset-8 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 blur-xl rounded-full"></span>
+            <span className="absolute -inset-8 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 blur-xl rounded-full"></span>
             <h1 className="relative text-6xl font-black text-white tracking-tight">
-              GASCKK AISHE <span className="bg-gradient-to-r from-blue-400 to-indigo-400 text-transparent bg-clip-text">PORTAL</span>
+              ADMINISTRATIVE <span className="bg-gradient-to-r from-indigo-400 to-purple-400 text-transparent bg-clip-text">PORTAL</span>
             </h1>
           </motion.div>
           <motion.p 
@@ -58,7 +58,7 @@ export default function LoginSelection({ onSelect }) {
             transition={{ delay: 0.3 }}
             className="text-xl text-blue-100/80 font-medium tracking-wide mt-4"
           >
-            All India Survey on Higher Education - Staff Access
+            GASCKK AISHE - Administrative & Management Access
           </motion.p>
         </div>
       </header>
@@ -97,7 +97,7 @@ export default function LoginSelection({ onSelect }) {
           ))}
         </motion.div>
 
-        {/* Educational Quote */}
+        {/* Administrative Quote */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -105,11 +105,25 @@ export default function LoginSelection({ onSelect }) {
           className="mt-12 text-center max-w-2xl mx-auto"
         >
           <blockquote className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 blur rounded-lg"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 blur rounded-lg"></div>
             <p className="relative italic text-blue-100 text-lg font-medium px-6 py-4">
               "{randomQuote}"
             </p>
           </blockquote>
+        </motion.div>
+
+        {/* Access Note */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="mt-8 text-center"
+        >
+          <div className="px-6 py-3 bg-amber-500/10 backdrop-blur-sm rounded-xl border border-amber-500/20">
+            <p className="text-amber-200/90 text-sm font-medium">
+              🔒 Administrative Access Only
+            </p>
+          </div>
         </motion.div>
       </main>
 
@@ -122,7 +136,7 @@ export default function LoginSelection({ onSelect }) {
             transition={{ delay: 0.8 }}
             className="text-white/80 text-sm font-medium"
           >
-            &copy; {new Date().getFullYear()} AISHE Portal. All rights reserved.
+            &copy; {new Date().getFullYear()} AISHE Administrative Portal. All rights reserved.
           </motion.span>
           <motion.span 
             initial={{ opacity: 0 }}

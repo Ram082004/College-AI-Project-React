@@ -741,66 +741,6 @@ export default function StudentEnrollment({ userData }) {
             </div>
           </div>
 
-          {/* Year Completion Status */}
-          <div className="bg-blue-50/60 rounded-2xl p-6 mb-8 shadow-sm border border-blue-100 flex flex-col gap-4">
-  <div className="flex items-center justify-between mb-4">
-    <div className="flex items-center gap-2">
-      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" fill="#2563eb"/></svg>
-      </span>
-      <h4 className="text-lg font-semibold text-blue-900">Year Completion Status</h4>
-    </div>
-    <span className="text-sm text-blue-700 font-medium">Academic Year: {selectedAcademicYear || 'N/A'}</span>
-  </div>
-  <div className="flex gap-8 justify-center w-full">
-    {getYearSlots().map(year => (
-      <div
-        key={year}
-        className="flex flex-col items-center justify-center px-8 py-6 rounded-xl border shadow-sm"
-        style={{
-          minWidth: 180,
-          maxWidth: 220,
-          background: yearCompletionStatus[year] === 'Completed' ? '#f6fff4' : '#fffbe6',
-          borderColor: yearCompletionStatus[year] === 'Completed' ? '#b7f5c2' : '#ffe9a7',
-          boxShadow: '0 1px 6px 0 rgba(0,0,0,0.04)'
-        }}
-      >
-        <span className="mb-2">
-          <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
-            <path d="M3 13h2v-2H3v2zm4 0h2v-2H7v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2z" fill="#fbbf24"/>
-          </svg>
-        </span>
-        <span className="font-semibold text-base text-gray-900 mb-1">{year}</span>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold ${yearCompletionStatus[year] === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-          {yearCompletionStatus[year] === 'Completed' ? 'Completed' : 'Incomplete'}
-        </span>
-      </div>
-    ))}
-  </div>
-  <button
-    disabled={
-      !getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') ||
-      isDeclarationLocked // <-- Disable if locked
-    }
-    onClick={openDeclarationModal}
-    className={`mt-6 mx-auto py-3 px-8 rounded-lg font-semibold text-white transition-all duration-200
-      ${
-        getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') && !isDeclarationLocked
-          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-          : 'bg-gray-400 cursor-not-allowed'
-      }`}
-    style={{
-      display: 'block',
-      margin: '0 auto',
-      minWidth: 180,
-      maxWidth: 260,
-      textAlign: 'center'
-    }}
-  >
-    Final Submission
-  </button>
-</div>
-
           {/* Categories Grid */}
           <div className="flex flex-col md:flex-row gap-8 justify-center items-start">
             {['PwBD', 'Muslim Minority', 'Other Minority'].map(subcategory => (
@@ -1016,6 +956,7 @@ export default function StudentEnrollment({ userData }) {
             <h3 className="text-lg font-semibold text-gray-900">
               Enrollment Summary ({degreeLevel})
             </h3>
+            
             {/* Centered Year Tabs */}
             <div className="flex justify-center mt-4">
               <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
@@ -1063,6 +1004,66 @@ export default function StudentEnrollment({ userData }) {
             ))}
           </div>
         </div>
+
+        {/* Move Year Completion Status here - CENTERED */}
+            <div className="bg-blue-50/60 rounded-2xl p-6 mt-6 mb-6 shadow-sm border border-blue-100 flex flex-col gap-4 w-full max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-blue-100">
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-13h2v6h-2V7zm0 8h2v2h-2v-2z" fill="#2563eb"/></svg>
+                  </span>
+                  <h4 className="text-lg font-semibold text-blue-900">Year Completion Status</h4>
+                </div>
+                <span className="text-sm text-blue-700 font-medium">Academic Year: {selectedAcademicYear || 'N/A'}</span>
+              </div>
+              <div className="flex gap-8 justify-center w-full">
+                {getYearSlots().map(year => (
+                  <div
+                    key={year}
+                    className="flex flex-col items-center justify-center px-8 py-6 rounded-xl border shadow-sm"
+                    style={{
+                      minWidth: 180,
+                      maxWidth: 220,
+                      background: yearCompletionStatus[year] === 'Completed' ? '#f6fff4' : '#fffbe6',
+                      borderColor: yearCompletionStatus[year] === 'Completed' ? '#b7f5c2' : '#ffe9a7',
+                      boxShadow: '0 1px 6px 0 rgba(0,0,0,0.04)'
+                    }}
+                  >
+                    <span className="mb-2">
+                      <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+                        <path d="M3 13h2v-2H3v2zm4 0h2v-2H7v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2z" fill="#fbbf24"/>
+                      </svg>
+                    </span>
+                    <span className="font-semibold text-base text-gray-900 mb-1">{year}</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${yearCompletionStatus[year] === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                      {yearCompletionStatus[year] === 'Completed' ? 'Completed' : 'Incomplete'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="flex justify-center">
+                <button
+                  disabled={
+                    !getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') ||
+                    isDeclarationLocked
+                  }
+                  onClick={openDeclarationModal}
+                  className={`py-3 px-8 rounded-lg font-semibold text-white transition-all duration-200
+                    ${
+                      getYearSlots().every(year => yearCompletionStatus[year] === 'Completed') && !isDeclarationLocked
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                        : 'bg-gray-400 cursor-not-allowed'
+                    }`}
+                  style={{
+                    minWidth: 180,
+                    maxWidth: 260,
+                    textAlign: 'center'
+                  }}
+                >
+                  Final Submission
+                </button>
+              </div>
+            </div>
       </div>
 
       {/* Info Modals */}
@@ -1142,7 +1143,7 @@ export default function StudentEnrollment({ userData }) {
                   setTimeout(() => setGlobalMessage(null), 3000);
                 }}
               >
-                Finish
+                C
               </button>
             </div>
           </div>
@@ -1151,72 +1152,72 @@ export default function StudentEnrollment({ userData }) {
 
       {/* Declaration Modal */}
       {showDeclaration && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-3xl w-full mx-4"
+            className="bg-white rounded-2xl shadow-2xl p-4 sm:p-6 md:p-8 w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-4 max-h-[90vh] overflow-y-auto"
           >
             {/* Header */}
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-blue-600 rounded-2xl mx-auto flex items-center justify-center mb-4 transform -rotate-12">
-                <RiCheckboxCircleLine className="text-3xl text-white" />
+            <div className="text-center mb-6 md:mb-8">
+              <div className="w-12 h-12 md:w-16 md:h-16 bg-blue-600 rounded-xl md:rounded-2xl mx-auto flex items-center justify-center mb-3 md:mb-4 transform -rotate-12">
+                <RiCheckboxCircleLine className="text-2xl md:text-3xl text-white" />
               </div>
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <h3 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                 Declaration Form
               </h3>
-              <p className="text-gray-500 mt-2">Please review and confirm your submission</p>
+              <p className="text-gray-500 mt-2 text-sm md:text-base">Please review and confirm your submission</p>
             </div>
 
             {/* Landscape Info Card */}
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 mb-6">
-              <div className="grid grid-cols-2 gap-6">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 md:p-6 mb-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Academic Year</p>
-                  <p className="text-lg font-semibold text-gray-900">{academicYears[0]}</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-500">Academic Year</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900">{academicYears[0]}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Department Name</p>
-                  <p className="text-lg font-semibold text-gray-900">{userData?.department}</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-500">Department Name</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900 break-words">{userData?.department}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Submitted By</p>
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-xs md:text-sm font-medium text-gray-500">Submitted By</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900 break-words">
                     {userData?.name || userData?.username || (
-                      <span className="text-red-500 text-base">Not Available</span>
+                      <span className="text-red-500 text-sm">Not Available</span>
                     )}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Completed Years</p>
-                  <p className="text-lg font-semibold text-gray-900">
+                  <p className="text-xs md:text-sm font-medium text-gray-500">Completed Years</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900">
                     {declarationYearSlot || ''}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">HOD Name</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {hodName ? hodName : <span className="text-red-500 text-base">Not Available</span>}
+                  <p className="text-xs md:text-sm font-medium text-gray-500">HOD Name</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900 break-words">
+                    {hodName ? hodName : <span className="text-red-500 text-sm">Not Available</span>}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Degree Level</p>
-                  <p className="text-lg font-semibold text-gray-900">{degreeLevel}</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-500">Degree Level</p>
+                  <p className="text-sm md:text-lg font-semibold text-gray-900">{degreeLevel}</p>
                 </div>
               </div>
             </div>
 
             {/* Declaration Text */}
-            <div className="bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-xl p-6 border border-blue-100 mb-8">
-              <div className="flex items-start space-x-4">
+            <div className="bg-gradient-to-br from-blue-500/5 to-indigo-500/5 rounded-xl p-4 md:p-6 border border-blue-100 mb-6 md:mb-8">
+              <div className="flex items-start space-x-3 md:space-x-4">
                 <div className="flex-shrink-0 mt-1">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <RiInformationLine className="text-xl text-blue-600" />
+                  <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <RiInformationLine className="text-lg md:text-xl text-blue-600" />
                   </div>
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 mb-2">Declaration Statement</h4>
-                  <p className="text-gray-600 leading-relaxed">
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 mb-2 text-sm md:text-base">Declaration Statement</h4>
+                  <p className="text-gray-600 leading-relaxed text-xs md:text-sm break-words">
                     I hereby declare that the Student Enrollment data for{' '}
                     <span className="font-semibold text-blue-600">
                       {declarationYearSlot || ''}
@@ -1235,31 +1236,30 @@ export default function StudentEnrollment({ userData }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex flex-col items-center gap-3 py-4"
               >
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <RiCheckboxCircleLine className="text-2xl text-green-600" />
+                <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <RiCheckboxCircleLine className="text-xl md:text-2xl text-green-600" />
                 </div>
-                <p className="font-semibold text-green-600">Declaration Submitted Successfully!</p>
+                <p className="font-semibold text-green-600 text-sm md:text-base">Declaration Submitted Successfully!</p>
               </motion.div>
             ) : (
-              <div className="flex items-center justify-end gap-4">
+              <div className="flex flex-col sm:flex-row items-center justify-end gap-3 md:gap-4">
                 <button
-                  className="px-6 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors"
+                  className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors text-sm md:text-base"
                   onClick={() => setShowDeclaration(false)}
                   disabled={finalSubmitting}
                 >
                   Cancel
                 </button>
-                {/* Only show Confirm & Submit button, remove Lock Declaration */}
                 <button
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 
-                           text-white font-medium hover:from-blue-700 hover:to-indigo-700 
-                           transition-colors shadow-lg shadow-blue-500/25"
+                  className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 
+                     text-white font-medium hover:from-blue-700 hover:to-indigo-700 
+                     transition-colors shadow-lg shadow-blue-500/25 text-sm md:text-base"
                   onClick={handleFinalDeclarationSubmit}
                   disabled={finalSubmitting}
                 >
                   {finalSubmitting ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="flex items-center gap-2 justify-center">
+                      <div className="w-3 h-3 md:w-4 md:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       <span>Submitting...</span>
                     </div>
                   ) : (

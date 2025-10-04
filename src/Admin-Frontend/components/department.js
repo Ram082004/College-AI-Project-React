@@ -28,7 +28,8 @@ const departmentOptions = [
 const yearSlotOptionsUG = ['I Year', 'II Year', 'III Year'];
 const yearSlotOptionsPG = ['I Year', 'II Year'];
 const degreeLevelOptions = ['UG', 'PG'];
-const academicYearOptions = ['2024-2025']; // This should be updated dynamically if needed
+// Make academic year options dynamic like admin.js
+const academicYearOptions = ['2024-2025', '2025-2026', '2026-2027', '2027-2028'];
 const durationOptions = ['3', '2']; // For duration dropdown
 
 export default function Department({ adminAcademicYear }) {
@@ -74,7 +75,11 @@ export default function Department({ adminAcademicYear }) {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
         });
         if (res.data?.admins?.length) {
-          setAdminAcademicYear(res.data.admins[0].academic_year || "");
+          const currentAcademicYear = res.data.admins[0].academic_year || "";
+          setAdminAcademicYear(currentAcademicYear);
+          setLatestAcademicYear(currentAcademicYear);
+          // Set default academic year for new user form to current admin academic year
+          setNewUser(prev => ({ ...prev, academic_year: currentAcademicYear }));
         }
       } catch {
         setAdminAcademicYear("");
@@ -103,7 +108,9 @@ export default function Department({ adminAcademicYear }) {
       if (res.data.success) {
         setGlobalMessage({ type: 'success', text: res.data.message });
         setNewUser({
-          name: '', username: '', email: '', mobile: '', department: '', dept_id: '', academic_year: '', degree_level: '', duration: '', password: '', hod: '',
+          name: '', username: '', email: '', mobile: '', department: '', dept_id: '', 
+          academic_year: latestAcademicYear, // Reset to current academic year
+          degree_level: '', duration: '', password: '', hod: '',
         });
         setShowDeptUserForm(false);
         fetchDepartmentUsers();
@@ -209,7 +216,7 @@ export default function Department({ adminAcademicYear }) {
     <div className="relative p-0 md:p-2">
       {/* Academic Year Badge - prefer prop, fallback to local/latest */}
       <div className="flex justify-end">
-        <AcademicYearBadge year={adminAcademicYear || ""} />
+        <AcademicYearBadge year={adminAcademicYear || latestAcademicYear} />
       </div>
 
       {/* Department Users header + Add button */}
@@ -231,7 +238,7 @@ export default function Department({ adminAcademicYear }) {
         <div className={`mb-6 px-6 py-3 rounded-2xl shadow font-semibold text-base ${globalMessage.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>{globalMessage.text}</div>
       )}
 
-      {/* New user form unchanged */}
+      {/* New user form with enhanced academic year dropdown */}
       {showDeptUserForm && (
         <form onSubmit={handleNewUserSubmit} className="mb-10 bg-gradient-to-br from-blue-50 to-indigo-50 p-8 rounded-2xl shadow-xl border border-blue-100 animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -244,18 +251,30 @@ export default function Department({ adminAcademicYear }) {
               {departmentOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
             <input name="dept_id" value={newUser.dept_id} onChange={handleNewUserChange} placeholder="Dept ID" className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400" required />
-            <select
-              name="academic_year"
-              value={newUser.academic_year}
-              onChange={handleNewUserChange}
-              className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400"
-              required
-            >
-              <option value="">Select Academic Year</option>
-              {academicYearOptions.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+            
+            {/* Enhanced Academic Year Dropdown like admin.js */}
+            <div className="relative">
+              <select
+                name="academic_year"
+                value={newUser.academic_year}
+                onChange={handleNewUserChange}
+                className="p-3 border-2 border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-400 w-full bg-blue-50 text-blue-800 font-semibold"
+                required
+              >
+                <option value="">Select Academic Year</option>
+                {academicYearOptions.map(year => (
+                  <option key={year} value={year} className={year === latestAcademicYear ? 'bg-blue-100 font-bold' : ''}>
+                    {year} {year === latestAcademicYear ? '(Current)' : ''}
+                  </option>
+                ))}
+              </select>
+              {newUser.academic_year && (
+                <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                  Selected: {newUser.academic_year}
+                </div>
+              )}
+            </div>
+
             <select
               name="degree_level"
               value={newUser.degree_level}
@@ -378,18 +397,27 @@ export default function Department({ adminAcademicYear }) {
               </div>
               <div>
                 <label className="block font-bold text-blue-700 mb-2">Academic Year</label>
-                <select
-                  name="academic_year"
-                  value={deptUserEditForm.academic_year}
-                  onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
-                  className="p-3 border-2 border-blue-200 rounded-xl w-full"
-                  required
-                >
-                  <option value="">Select Academic Year</option>
-                  {academicYearOptions.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    name="academic_year"
+                    value={deptUserEditForm.academic_year}
+                    onChange={e => setDeptUserEditForm({ ...deptUserEditForm, academic_year: e.target.value })}
+                    className="p-3 border-2 border-blue-200 rounded-xl w-full bg-blue-50 text-blue-800 font-semibold focus:ring-2 focus:ring-blue-400"
+                    required
+                  >
+                    <option value="">Select Academic Year</option>
+                    {academicYearOptions.map(year => (
+                      <option key={year} value={year} className={year === latestAcademicYear ? 'bg-blue-100 font-bold' : ''}>
+                        {year} {year === latestAcademicYear ? '(Current)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {deptUserEditForm.academic_year && (
+                    <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                      {deptUserEditForm.academic_year}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block font-bold text-blue-700 mb-2">Degree Level</label>

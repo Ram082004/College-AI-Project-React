@@ -7,9 +7,12 @@ const API = {
   OFFICE_SUBMISSION: `${API_BASE}/principle/office-submission`,
   DISTINCT_YEARS: `${API_BASE}/submitted-data/distinct/years`,
   ADMIN_ALL: `${API_BASE}/admin/all`,
+  // NEW: Add endpoint to check department enrollment data
+  OFFICE_DEPT_GET: `${API_BASE}/office/officedept/get`
 };
 
-const OFFICE_TYPES = ["Teaching Staff", "Non-Teaching Staff"];
+// Include Department Enrollment like in Admin officesubmission.js
+const OFFICE_TYPES = ["Teaching Staff", "Non-Teaching Staff", "Department Enrollment"];
 
 const OfficeSubmission = () => {
   const [officeSubmissions, setOfficeSubmissions] = useState([]);
@@ -18,6 +21,9 @@ const OfficeSubmission = () => {
   const [loading, setLoading] = useState(false);
   const [activeYearTab, setActiveYearTab] = useState("current"); // "current" | "previous"
   const [selectedPreviousYear, setSelectedPreviousYear] = useState("");
+
+  // NEW: Add state to track department enrollment data existence
+  const [deptEnrollmentExists, setDeptEnrollmentExists] = useState(false);
 
   // Remember previous admin year so recent change appears under "Previous"
   const [prevAdminYear, setPrevAdminYear] = useState("");
@@ -103,6 +109,30 @@ const OfficeSubmission = () => {
 
   const academicYearSelected = activeYearTab === "current" ? (adminAcademicYear || (academicYears[0] || "")) : (selectedPreviousYear || "");
 
+  // NEW: Check if department enrollment data exists for the selected academic year
+  useEffect(() => {
+    let mounted = true;
+    async function checkDeptRows() {
+      if (!academicYearSelected) {
+        if (mounted) setDeptEnrollmentExists(false);
+        return;
+      }
+      try {
+        const res = await axios.get(API.OFFICE_DEPT_GET, {
+          params: { academic_year: academicYearSelected },
+          headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
+        });
+        if (!mounted) return;
+        const rows = Array.isArray(res.data?.rows) ? res.data.rows : [];
+        setDeptEnrollmentExists(rows.length > 0);
+      } catch (err) {
+        if (mounted) setDeptEnrollmentExists(false);
+      }
+    }
+    checkDeptRows();
+    return () => { mounted = false; };
+  }, [academicYearSelected]);
+
   const rowsForTypes = OFFICE_TYPES.map(type => {
     const matches = (officeSubmissions || []).filter(s => {
       if (((s.type || "").trim()) !== type) return false;
@@ -116,6 +146,20 @@ const OfficeSubmission = () => {
       // previous tab + no explicit year => include any row that is not currentAcademic
       return rowYear && rowYear !== currentAcademic;
     });
+
+    // Special handling for Department Enrollment like in Admin officesubmission.js
+    if (type === "Department Enrollment") {
+      if (matches.length === 0) {
+        // Check if department enrollment data exists
+        return {
+          id: `default-${type}-${academicYearSelected || "any"}`,
+          academic_year: academicYearSelected || "",
+          type,
+          status: deptEnrollmentExists ? "Completed" : "Incompleted",
+          submitted_at: null
+        };
+      }
+    }
 
     if (matches.length === 0) {
       return {
@@ -182,26 +226,48 @@ const OfficeSubmission = () => {
           <table className="min-w-full bg-white border-0 rounded-2xl shadow-xl overflow-hidden">
             <thead className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
               <tr>
-                <th className="p-4 text-left font-bold tracking-wide">Academic Year</th>
-                <th className="p-4 text-left font-bold tracking-wide">Type</th>
-                <th className="p-4 text-left font-bold tracking-wide">Status</th>
-                <th className="p-4 text-left font-bold tracking-wide">Submitted At</th>
+                <th className="p-4 text-left font-bold tracking-wide" style={{ minWidth: "130px" }}>Academic Year</th>
+                <th className="p-4 text-left font-bold tracking-wide" style={{ minWidth: "180px" }}>Type</th>
+                <th className="p-4 text-left font-bold tracking-wide" style={{ minWidth: "120px" }}>Status</th>
+                <th className="p-4 text-left font-bold tracking-wide" style={{ minWidth: "140px" }}>Submitted At</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-green-50">
+            <tbody className="divide-y divide-green-50" style={{ minHeight: "300px" }}>
               {rowsForTypes.map((row) => (
-                <tr key={row.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition">
-                  <td className="p-4 font-semibold text-green-900">{row.academic_year || "-"}</td>
-                  <td className="p-4">{row.type}</td>
-                  <td className="p-4">
+                <tr key={row.id} className="hover:bg-gradient-to-r hover:from-green-50 hover:to-emerald-50 transition" style={{ minHeight: "60px" }}>
+                  <td className="p-4 align-top font-semibold text-green-900">{row.academic_year || "-"}</td>
+                  <td className="p-4 align-top">
+                    <span className={`inline-block px-3 py-1 rounded-2xl text-sm font-bold ${
+                      row.type === 'Department Enrollment' 
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white'
+                        : row.type === 'Teaching Staff'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {row.type}
+                    </span>
+                  </td>
+                  <td className="p-4 align-top">
                     <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${row.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
                       <span className={`w-2 h-2 rounded-full ${row.status === 'Completed' ? 'bg-green-600' : 'bg-yellow-600'}`} />
                       {row.status === 'Completed' ? 'Completed' : 'Incompleted'}
                     </span>
                   </td>
-                  <td className="p-4">{row.submitted_at ? new Date(row.submitted_at).toLocaleString() : '-'}</td>
+                  <td className="p-4 align-top">{row.submitted_at ? new Date(row.submitted_at).toLocaleString() : '-'}</td>
                 </tr>
               ))}
+              {rowsForTypes.length === 0 && (
+                <tr style={{ minHeight: "200px" }}>
+                  <td colSpan={4} className="px-4 py-12 text-center text-gray-400 bg-gradient-to-r from-green-50 to-emerald-50">
+                    <div className="flex flex-col items-center justify-center">
+                      <svg className="w-12 h-12 text-gray-300 mb-2" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-gray-600 font-medium">No office submission data found</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
