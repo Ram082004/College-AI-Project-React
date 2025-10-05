@@ -4,7 +4,7 @@ import { RiInformationLine, RiBarChartBoxLine, RiCheckboxCircleLine } from 'reac
 import axios from 'axios';
 import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://admin-back-j3j4.onrender.com/api';
 const API = {
   EXAMINATION: `${API_BASE}/examination-summary`,
   student_examination: (deptId) => `${API_BASE}/student-examination/department/${deptId}`,
@@ -105,7 +105,7 @@ export default function StudentExamination({ userData }) {
     async function fetchDegreeLevels() {
       if (!userData?.dept_id) return;
       try {
-        const res = await axios.get(`http://localhost:5000/api/degree-levels/${userData.dept_id}`, {
+        const res = await axios.get(`https://admin-back-j3j4.onrender.com/api/degree-levels/${userData.dept_id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         });
         if (res.data.success && Array.isArray(res.data.degree_levels) && res.data.degree_levels.length > 0) {
@@ -306,7 +306,7 @@ export default function StudentExamination({ userData }) {
   const fetchHodName = async () => {
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/department-user/hod/${userData.dept_id}`,
+        `https://admin-back-j3j4.onrender.com/api/department-user/hod/${userData.dept_id}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
       if (res.data.success && res.data.hod_name) setHodName(res.data.hod_name);
@@ -347,7 +347,7 @@ export default function StudentExamination({ userData }) {
       );
       // Lock the declaration after successful submission
       await axios.post(
-        'http://localhost:5000/api/student-examination/lock-declaration',
+        'https://admin-back-j3j4.onrender.com/api/student-examination/lock-declaration',
         {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
@@ -376,7 +376,7 @@ export default function StudentExamination({ userData }) {
     if (!userData?.dept_id || !selectedAcademicYear) return;
     try {
       const res = await axios.get(
-        'http://localhost:5000/api/student-examination/declaration-lock-status',
+        'https://admin-back-j3j4.onrender.com/api/student-examination/declaration-lock-status',
         {
           params: {
             deptId: userData.dept_id,

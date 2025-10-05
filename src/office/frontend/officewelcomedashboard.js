@@ -20,7 +20,7 @@ export default function OfficeWelcomeDashboard({ name: propName }) {
 
     async function fetchAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setAcademicYear(res.data.academic_year || "");
       } catch {
         setAcademicYear("");

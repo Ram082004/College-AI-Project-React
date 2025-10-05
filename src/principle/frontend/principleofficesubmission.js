@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api";
 const API = {
   OFFICE_SUBMISSION: `${API_BASE}/principle/office-submission`,
   DISTINCT_YEARS: `${API_BASE}/submitted-data/distinct/years`,

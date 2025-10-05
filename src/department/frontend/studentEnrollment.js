@@ -8,9 +8,9 @@ import {
 import axios from 'axios';
 import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://admin-back-j3j4.onrender.com/api';
 const API = {
-  ENROLLMENT: `${API_BASE}/enrollment-summary`,
+  ENROLLMENT: `${API_BASE}/department/enrollment-summary`,
   student_enrollment: (deptId) => `${API_BASE}/student-enrollment/department/${deptId}`,
   academic_years: (deptId) => `${API_BASE}/department-user/academic-year/${deptId}`,
   hod_name: (deptId) => `${API_BASE}/department-user/hod/${deptId}`, // <-- Add this line
@@ -267,7 +267,7 @@ export default function StudentEnrollment({ userData }) {
   const checkDeclarationLockStatus = async () => {
     if (!userData?.dept_id || !selectedAcademicYear) return;
     try {
-      const res = await axios.get('http://localhost:5000/api/student-enrollment/declaration-lock-status', {
+      const res = await axios.get('https://admin-back-j3j4.onrender.com/api/student-enrollment/declaration-lock-status', {
         params: {
           deptId: userData.dept_id,
           year: yearSlots.join(', '), // <-- add space after comma
@@ -297,7 +297,7 @@ export default function StudentEnrollment({ userData }) {
     setFinalSubmitting(true);
     try {
       await axios.post(
-        'http://localhost:5000/api/student-enrollment/submit-declaration',
+        'https://admin-back-j3j4.onrender.com/api/student-enrollment/submit-declaration',
         {
           dept_id: userData?.dept_id,
           name: userData?.name || userData?.username,
@@ -312,7 +312,7 @@ export default function StudentEnrollment({ userData }) {
       );
       // Lock after submit
       await axios.post(
-        'http://localhost:5000/api/student-enrollment/lock-declaration',
+        'https://admin-back-j3j4.onrender.com/api/student-enrollment/lock-declaration',
         {
           dept_id: userData?.dept_id,
           year: Array.isArray(declarationYearSlot) ? declarationYearSlot.join(', ') : declarationYearSlot,
@@ -393,7 +393,7 @@ export default function StudentEnrollment({ userData }) {
         });
       });
       const response = await axios.put(
-        'http://localhost:5000/api/student-enrollment/update',
+        'https://admin-back-j3j4.onrender.com/api/student-enrollment/update',
         { records: updateRecords },
         {
           headers: {
@@ -596,7 +596,7 @@ export default function StudentEnrollment({ userData }) {
   useEffect(() => {
     async function fetchDegreeLevels() {
       if (!userData?.dept_id) return;
-      const res = await fetch(`http://localhost:5000/api/degree-levels/${userData.dept_id}`);
+      const res = await fetch(`https://admin-back-j3j4.onrender.com/api/degree-levels/${userData.dept_id}`);
       const data = await res.json();
       if (data.success && data.degree_levels.length > 0) {
         setAllowedDegreeLevels(data.degree_levels);

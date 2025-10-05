@@ -34,30 +34,30 @@ const PdfDownload = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("authToken");
-    axios.get("http://localhost:5000/api/office/basic-information", { headers: { Authorization: `Bearer ${token}` } })
+    axios.get("https://admin-back-j3j4.onrender.com/api/office/basic-information", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setBasicInfo(res.data.data || {}));
-    axios.get("http://localhost:5000/api/office/office-details", { headers: { Authorization: `Bearer ${token}` } })
+    axios.get("https://admin-back-j3j4.onrender.com/api/office/office-details", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setOfficeDetails(res.data.data || {}));
-    axios.get("http://localhost:5000/api/office/institution-address", { headers: { Authorization: `Bearer ${token}` } })
+    axios.get("https://admin-back-j3j4.onrender.com/api/office/institution-address", { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setAddressDetails(res.data.data || {}));
 
     // Template summaries: include academic year as query param so backend can filter
-    axios.get("http://localhost:5000/api/template/department-enrollment-summary", {
+    axios.get("https://admin-back-j3j4.onrender.com/api/template/department-enrollment-summary", {
       headers: { Authorization: `Bearer ${token}` },
       params: { academic_year: selectedAcademicYear }
     }).then(res => setDepartmentEnrollment(res.data.summary || []));
 
-    axios.get("http://localhost:5000/api/template/department-examination-summary", {
+    axios.get("https://admin-back-j3j4.onrender.com/api/template/department-examination-summary", {
       headers: { Authorization: `Bearer ${token}` },
       params: { academic_year: selectedAcademicYear }
     }).then(res => setDepartmentExamination(res.data.summary || []));
 
-    axios.get("http://localhost:5000/api/template/teaching-staff-summary", {
+    axios.get("https://admin-back-j3j4.onrender.com/api/template/teaching-staff-summary", {
       headers: { Authorization: `Bearer ${token}` },
       params: { academic_year: selectedAcademicYear }
     }).then(res => setTeachingStaff(res.data.summary || []));
 
-    axios.get("http://localhost:5000/api/template/non-teaching-staff-summary", {
+    axios.get("https://admin-back-j3j4.onrender.com/api/template/non-teaching-staff-summary", {
       headers: { Authorization: `Bearer ${token}` },
       params: { academic_year: selectedAcademicYear }
     }).then(res => setNonTeachingStaff(res.data.summary || []));
@@ -67,7 +67,7 @@ const PdfDownload = () => {
   useEffect(() => {
     async function fetchAdminAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/all", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/admin/all", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
         });
         if (res.data?.admins?.length) {

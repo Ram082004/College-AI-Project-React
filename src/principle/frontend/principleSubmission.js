@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api";
 const API = {
   SUBMITTED_DATA_ALL: `${API_BASE}/submitted-data`,
   ENROLLMENT_SUMMARY: `${API_BASE}/department-user/student-enrollment/summary`,
@@ -149,7 +149,7 @@ function PrincipleSubmission() {
   useEffect(() => {
     async function fetchAdminYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/all", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/admin/all", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data?.admins?.length) setLatestAcademicYear(res.data.admins[0].academic_year || "");
@@ -164,7 +164,7 @@ function PrincipleSubmission() {
   useEffect(() => {
     async function fetchAdminYearOnce() {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/all", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/admin/all", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data?.admins?.length) setAdminAcademicYear(res.data.admins[0].academic_year || "");

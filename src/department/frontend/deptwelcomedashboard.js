@@ -23,7 +23,7 @@ export default function DeptWelcomeDashboard() {
     async function fetchAcademicYear() {
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/department-user/academic-year/${deptUser?.dept_id}`,
+          `https://admin-back-j3j4.onrender.com/api/department-user/academic-year/${deptUser?.dept_id}`,
           { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
         );
         if (res.data.success && Array.isArray(res.data.years) && res.data.years.length > 0) {

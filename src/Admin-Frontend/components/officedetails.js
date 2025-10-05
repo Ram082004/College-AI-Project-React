@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { RiBarChartBoxLine } from "react-icons/ri";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api";
 const API = {
   TEACHING: `${API_BASE}/office-user/office-details/teaching`,
   NON_TEACHING: `${API_BASE}/office-user/office-details/nonteaching`,
@@ -49,7 +49,7 @@ export default function OfficeDetails() {
     axios.get(API.TEACHING).then(res => setTeachingData(res.data.data || [])).catch(() => setTeachingData([]));
     axios.get(API.NON_TEACHING).then(res => setNonTeachingData(res.data.data || [])).catch(() => setNonTeachingData([])).finally(() => setLoading(false));
     // fetch detailed non-teaching rows (same endpoint used by office UI)
-    axios.get("http://localhost:5000/api/office/non-teaching-staff")
+    axios.get("https://admin-back-j3j4.onrender.com/api/office/non-teaching-staff")
       .then(res => setDetailRecords(res.data.data || []))
       .catch(() => setDetailRecords([]));
   }, []);
@@ -57,7 +57,7 @@ export default function OfficeDetails() {
   useEffect(() => {
     async function fetchAdminAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/all", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/admin/all", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data?.admins?.length) {

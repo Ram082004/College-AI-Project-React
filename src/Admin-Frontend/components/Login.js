@@ -34,7 +34,7 @@ export default function Login({ onForgotClick, onLoginSuccess, onBack }) {
         return;
       }
 
-      const response = await axios.post('http://localhost:5000/api/login', {
+      const response = await axios.post('https://admin-back-j3j4.onrender.com/api/login', {
         username,
         password
       }, {
@@ -93,7 +93,7 @@ export default function Login({ onForgotClick, onLoginSuccess, onBack }) {
             >
               <FaShieldAlt className="text-3xl text-white" />
             </motion.div>
-            <h2 className="text-3xl font-bold text-white mb-2">Administrator Login</h2>
+            <h2 className="text-3xl font-bold text-white mb-2">Nodel Login</h2>
             <p className="text-blue-200/80">Access system management console</p>
           </div>
 
@@ -110,7 +110,7 @@ export default function Login({ onForgotClick, onLoginSuccess, onBack }) {
           <form onSubmit={loginHandler} className="space-y-6">
             <div>
               <label className="text-sm font-medium text-gray-300 mb-1 block">
-                Admin Username
+                Nodel Username
               </label>
               <input
                 type="text"
@@ -171,7 +171,7 @@ export default function Login({ onForgotClick, onLoginSuccess, onBack }) {
                   <span>Logging in...</span>
                 </div>
               ) : (
-                'Login as Administrator'
+                'Login as Nodel Officer'
               )}
             </motion.button>
 

@@ -1,5 +1,5 @@
 {
-  "name": "aishe",
+  "name": "gasckk-aishe-portal",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -65,5 +65,6 @@
     "concurrently": "^9.1.2",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.3"
-  }
+  },
+  "homepage": "https://aishegasckk.in/"
 }

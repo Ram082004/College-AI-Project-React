@@ -28,7 +28,7 @@ const DepartmentLogin = ({ onLoginSuccess, onBack }) => {
         return;
       }
 
-      const response = await axios.post('http://localhost:5000/api/department-login', {
+      const response = await axios.post('https://admin-back-j3j4.onrender.com/api/department/department-login', {
         username,
         password,
       }, {
@@ -81,7 +81,7 @@ const DepartmentLogin = ({ onLoginSuccess, onBack }) => {
       setError('');
       setSuccessMessage('');
       const response = await axios.post(
-        'http://localhost:5000/api/department-forgot-password',
+        'https://admin-back-j3j4.onrender.com/api/department-forgot-password',
         { username },
         { headers: { 'Content-Type': 'application/json' } }
       );

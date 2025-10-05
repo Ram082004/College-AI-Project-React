@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api";
 const API = {
   TEACHING: `${API_BASE}/office/teaching-staff`,
   NON_TEACHING: `${API_BASE}/office/non-teaching-staff`,
@@ -54,7 +54,7 @@ export default function PrincipleOfficeDetails() {
   useEffect(() => {
     async function fetchAdminYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/admin/all", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/admin/all", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data?.admins?.length) {

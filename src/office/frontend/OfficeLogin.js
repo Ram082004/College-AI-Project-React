@@ -28,7 +28,7 @@ const OfficeLogin = ({ onLoginSuccess, onBack }) => {
         return;
       }
 
-      const response = await axios.post('http://localhost:5000/api/office/office-login', {
+      const response = await axios.post('https://admin-back-j3j4.onrender.com/api/office/office-login', {
         username,
         password,
       }, {
@@ -85,7 +85,7 @@ const OfficeLogin = ({ onLoginSuccess, onBack }) => {
       setError('');
       setSuccessMessage('');
       const response = await axios.post(
-        'http://localhost:5000/api/office/office-forgot-password',
+        'https://admin-back-j3j4.onrender.com/api/office/office-forgot-password',
         { username },
         { headers: { 'Content-Type': 'application/json' } }
       );

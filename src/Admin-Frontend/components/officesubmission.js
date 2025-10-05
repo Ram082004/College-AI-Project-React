@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import AcademicYearBadge from "./AcademicYearBadge";
 
-const API_BASE = "http://localhost:5000/api";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api";
 const API = {
   OFFICE_SUBMISSION: `${API_BASE}/office-user/office-submission`,
   OFFICE_SUBMISSION_LOCK: (id) => `${API_BASE}/office-user/office-submission/${id}/lock`,

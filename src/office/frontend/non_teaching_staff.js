@@ -4,7 +4,7 @@ import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge
 import { motion } from "framer-motion";
 import { RiBarChartBoxLine } from "react-icons/ri";
 
-const API_BASE = "http://localhost:5000/api/office";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api/office";
 const API = {
   DROPDOWNS: `${API_BASE}/non-teaching-staff/dropdowns`,
   STAFF: `${API_BASE}/non-teaching-staff`
@@ -50,7 +50,7 @@ function NonTeachingStaff() {
   useEffect(() => {
     async function fetchAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
       } catch {
         setOfficeAcademicYear("");
@@ -79,7 +79,7 @@ function NonTeachingStaff() {
   useEffect(() => {
     async function fetchOfficeUsers() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office-user/office-users", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office-user/office-users", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data.success && res.data.users.length > 0) {

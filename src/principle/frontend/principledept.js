@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge';
 
-const DEPT_LIST_API = 'http://localhost:5000/api/principle/departments-list';
-const DEPT_DETAILS_API = deptId => `http://localhost:5000/api/principle/department-details/${deptId}`;
+const DEPT_LIST_API = 'https://admin-back-j3j4.onrender.com/api/principle/departments-list';
+const DEPT_DETAILS_API = deptId => `https://admin-back-j3j4.onrender.com/api/principle/department-details/${deptId}`;
 
 const yearSlots = {
   UG: ['I Year', 'II Year', 'III Year'],

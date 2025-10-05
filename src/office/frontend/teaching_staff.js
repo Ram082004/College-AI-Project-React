@@ -81,7 +81,7 @@ function TeachingStaff() {
   useEffect(() => {
     async function fetchOfficeAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
       } catch {
         setOfficeAcademicYear("");
@@ -93,7 +93,7 @@ function TeachingStaff() {
   // Centralized fetch for staff rows — normalize response to { data: [...] }
   const fetchStaffData = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/office/teaching-staff");
+      const response = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff");
       const rows = Array.isArray(response.data?.data) ? response.data.data : (Array.isArray(response.data) ? response.data : []);
       setStaffData({ data: rows });
     } catch (error) {
@@ -111,7 +111,7 @@ function TeachingStaff() {
   useEffect(() => {
     async function fetchAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setAcademicYear(res.data.academic_year || "");
       } catch {
         setAcademicYear("");
@@ -132,7 +132,7 @@ function TeachingStaff() {
       return;
     }
     try {
-      const res = await axios.get(`http://localhost:5000/api/office/teaching-staff/is-locked?academic_year=${year}`);
+      const res = await axios.get(`https://admin-back-j3j4.onrender.com/api/office/teaching-staff/is-locked?academic_year=${year}`);
       setIsLocked(!!res.data.isLocked);
     } catch {
       setIsLocked(false);
@@ -246,10 +246,10 @@ function TeachingStaff() {
           : form.additional_qualification || "None"
       };
       if (editId) {
-        await axios.put(`http://localhost:5000/api/office/teaching-staff/${editId}`, payload);
+        await axios.put(`https://admin-back-j3j4.onrender.com/api/office/teaching-staff/${editId}`, payload);
         setMessage({ type: "success", text: "Teaching staff entry updated successfully!" });
       } else {
-        await axios.post("http://localhost:5000/api/office/teaching-staff", payload);
+        await axios.post("https://admin-back-j3j4.onrender.com/api/office/teaching-staff", payload);
         setMessage({ type: "success", text: "Teaching staff entry submitted successfully!" });
       }
       setEditId(null);
@@ -358,7 +358,7 @@ function TeachingStaff() {
   useEffect(() => {
     async function fetchOfficeUsers() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office-user/office-users", {
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office-user/office-users", {
           headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` }
         });
         if (res.data.success && res.data.users.length > 0) {
@@ -423,7 +423,7 @@ function TeachingStaff() {
                 className="px-6 py-2 bg-blue-700 text-white rounded-lg font-bold"
                 disabled={!declarationAccepted}
                 onClick={async () => {
-                  await axios.post("http://localhost:5000/api/office/teaching-staff/final-submit", {
+                  await axios.post("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/final-submit", {
                     academic_year: academicYear,
                     type: "Teaching Staff",
                     status: "Completed",

@@ -3,7 +3,7 @@ import axios from 'axios';
 import AcademicYearBadge from "./AcademicYearBadge";
 
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://admin-back-j3j4.onrender.com/api';
 const API = {
   ADMIN_ALL: `${API_BASE}/admin/all`,
   ADMIN_UPDATE: (id) => `${API_BASE}/admin/${id}`,

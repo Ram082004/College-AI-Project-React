@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaGraduationCap, FaKey, FaLock } from 'react-icons/fa';
 import { RiEyeLine, RiEyeOffLine } from 'react-icons/ri';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://admin-back-j3j4.onrender.com/api';
 
 const Toast = ({ message, type, onClose }) => (
   <motion.div

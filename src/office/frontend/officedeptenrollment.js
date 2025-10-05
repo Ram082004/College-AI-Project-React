@@ -5,7 +5,7 @@ import AcademicYearBadge from '../../Admin-Frontend/components/AcademicYearBadge
 import { motion } from 'framer-motion';
 import { RiBarChartBoxLine } from 'react-icons/ri';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://admin-back-j3j4.onrender.com/api';
 const API = {
   ACADEMIC_YEARS: `${API_BASE}/office/academic-years`,
   OFFICE_DEPT_CREATE: `${API_BASE}/office/officedept/create`,

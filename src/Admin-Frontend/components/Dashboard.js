@@ -67,7 +67,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchAdminYear() {
       try {
-        const res = await axios.get('http://localhost:5000/api/admin/all', {
+        const res = await axios.get('https://admin-back-j3j4.onrender.com/api/admin/all', {
           headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` }
         });
         if (res.data.admins && res.data.admins.length > 0) {

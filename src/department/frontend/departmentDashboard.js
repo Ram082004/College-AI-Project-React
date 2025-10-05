@@ -45,7 +45,7 @@ export default function DepartmentDashboard() {
     if (!userData?.dept_id) return;
     try {
       const res = await axios.get(
-        `http://localhost:5000/api/department-user/hod/${userData.dept_id}`,
+        `https://admin-back-j3j4.onrender.com/api/department-user/hod/${userData.dept_id}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
       );
       if (res.data.success && res.data.hod_name) {
@@ -64,7 +64,7 @@ export default function DepartmentDashboard() {
       if (!userData?.dept_id) return;
       try {
         const res = await axios.get(
-          `http://localhost:5000/api/department-user/academic-year/${userData.dept_id}`,
+          `https://admin-back-j3j4.onrender.com/api/department-user/academic-year/${userData.dept_id}`,
           { headers: { Authorization: `Bearer ${localStorage.getItem('authToken')}` } }
         );
         if (res.data.success) setAcademicYears(res.data.years);

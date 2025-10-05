@@ -26,7 +26,7 @@ const PrincipleLogin = ({ onLoginSuccess, onBack }) => {
         return;
       }
 
-      const response = await axios.post('http://localhost:5000/api/principle/login', {
+      const response = await axios.post('https://admin-back-j3j4.onrender.com/api/principle/login', {
         username,
         password,
       }, {

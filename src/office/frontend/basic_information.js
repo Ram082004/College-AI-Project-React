@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import AcademicYearBadge from "../../Admin-Frontend/components/AcademicYearBadge";
 
-const API_BASE = "http://localhost:5000/api/office";
+const API_BASE = "https://admin-back-j3j4.onrender.com/api/office";
 const API = {
   BASIC_INFO_GET: `${API_BASE}/basic-information`,
   BASIC_INFO_SAVE: `${API_BASE}/basic-information`,
@@ -91,7 +91,7 @@ function BasicInformation({ editMode, setEditMode }) {
   useEffect(() => {
     async function fetchAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
       } catch {
         setOfficeAcademicYear("");
@@ -503,7 +503,7 @@ function OfficeDetails({ editMode, setEditMode }) {
   const fetchOfficeDetails = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/office/office-details", {
+      const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/office-details", {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
       if (res.data.success && res.data.data) {
@@ -527,7 +527,7 @@ function OfficeDetails({ editMode, setEditMode }) {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await axios.post("http://localhost:5000/api/office/office-details", data, {
+      const res = await axios.post("https://admin-back-j3j4.onrender.com/api/office/office-details", data, {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
       if (res.data.success) {
@@ -656,7 +656,7 @@ function AddressDetails({ editMode, setEditMode }) {
   const fetchAddress = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/office/institution-address", {
+      const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/institution-address", {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
       if (res.data.success && res.data.data) {
@@ -682,7 +682,7 @@ function AddressDetails({ editMode, setEditMode }) {
     setLoading(true);
     setMessage(null);
     try {
-      const res = await axios.post("http://localhost:5000/api/office/institution-address", data, {
+      const res = await axios.post("https://admin-back-j3j4.onrender.com/api/office/institution-address", data, {
         headers: { Authorization: `Bearer ${localStorage.getItem("authToken")}` },
       });
       if (res.data.success) {
@@ -886,7 +886,7 @@ export default function OfficeTabs() {
   useEffect(() => {
     async function fetchAcademicYear() {
       try {
-        const res = await axios.get("http://localhost:5000/api/office/teaching-staff/academic-year");
+        const res = await axios.get("https://admin-back-j3j4.onrender.com/api/office/teaching-staff/academic-year");
         if (res.data.success) setOfficeAcademicYear(res.data.academic_year || "");
       } catch {
         setOfficeAcademicYear("");

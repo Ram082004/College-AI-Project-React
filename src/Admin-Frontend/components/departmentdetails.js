@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AcademicYearBadge from "./AcademicYearBadge";
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://admin-back-j3j4.onrender.com/api';
 const DEPT_LIST_API = `${API_BASE}/department-user`;
 const DEPT_DETAILS_API = deptId => `${API_BASE}/department-user/details/${deptId}`;
 
